@@ -251,7 +251,7 @@ a 32×20 grid against layer-0 windows that are not its own (overlaps counted onc
 | Visible fraction ≥ 0.40 | 30 fps |
 | 0.05 ≤ visible fraction < 0.40 | 15 fps |
 | Visible fraction < 0.05 | 0 (halted) |
-| Low Power Mode on | 0 on all screens |
+| ~~Low Power Mode on~~ | ~~0 on all screens~~ — **no effect** (user decision, §10) |
 | Screen locked, screens asleep, or session inactive | 0 on all screens |
 
 Sources: `NSProcessInfoPowerStateDidChange`, `NSWorkspace.screensDidSleep/Wake`,
@@ -425,3 +425,11 @@ Found while writing and running the implementation plan's code; the plan impleme
 
 Measured while planning: a full frame at the XDR display's 3024×1964 takes ≈3–5 ms including a GPU sync
 (headless Chrome on the M2 Pro's Metal GPU), within the 8 ms budget; CPU time ≈0.7–0.9 ms per frame.
+
+## 10. User decisions during acceptance (2026-09-24)
+
+| Decision | Change |
+|---|---|
+| **Ignore Low Power Mode** (the user's Mac runs in it) | The wall keeps its normal rate and cursor in Low Power Mode; status line no longer has a Low Power entry; Pause stays enabled |
+| **Much livelier motion** | Sway 6.6–14.4° (was 2.2–4.8°); gusts every 7–14 s (was 15–40 s), up to ~30° (was 13°); cursor reach 140 units (was 90), bend up to 55° (was 38°), clamp 70°, stronger flick; photo shimmer 3–7 units (was 2–5) |
+| Host↔page handshake | The host treats the page as reachable only after its `ready` message (WebKit reports navigation finished before the scene's module runs); `--check` now also drives a hidden wall end to end |

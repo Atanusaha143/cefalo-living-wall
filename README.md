@@ -47,8 +47,8 @@ picture.
 
 **Will it drain my battery?** It uses more power than a still picture. It draws at most
 30 frames a second, 15 when windows cover most of the desktop, and stops completely when
-the desktop is almost fully covered, in Low Power Mode, and while the screen is locked
-or asleep.
+the desktop is almost fully covered and while the screen is locked or asleep. It keeps
+running in Low Power Mode; pause it from the menu if you want to save more.
 
 **What does it read?** The cursor position (so the leaves can react) and the positions
 of windows (to know how much of the desktop is visible). Never window contents, never
@@ -58,7 +58,7 @@ and makes no network requests.
 **Multiple displays?** Each display gets its own wall; Water mists all of them.
 
 **Why is it not moving?** Open the menu: the first line says why (paused, covered by
-windows, screen locked, Low Power Mode). If Reduce Motion is on, it starts paused until
+windows, screen locked). If Reduce Motion is on, it starts paused until
 you choose Resume.
 
 **Where is the leaf icon?** On a MacBook with a notch, macOS hides menu-bar icons that do
