@@ -15,7 +15,7 @@ rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 # Built for this Mac's own architecture; the binary never leaves it.
 swiftc -O -parse-as-library -swift-version 5 -target "$(uname -m)-apple-macos13.0" \
-	-o "$app/Contents/MacOS/Green Wall" "$here/GreenWall.swift" "$here/Coverage.swift" \
+	-o "$app/Contents/MacOS/Green Wall" "$here/GreenWall.swift" "$here/Coverage.swift" "$here/HostLogic.swift" \
 	-framework Cocoa -framework WebKit
 cp "$here/Info.plist" "$app/Contents/Info.plist"
 # No trailing slash on the source: with one, cp copies the folder's contents instead.

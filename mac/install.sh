@@ -47,7 +47,8 @@ cat >"$agent" <<PLIST
 </plist>
 PLIST
 
+# Loading the agent starts the app (RunAtLoad). No kickstart -k: restarting it moments
+# after launch could interrupt its first run while it saves the previous desktop picture.
 launchctl bootstrap "$domain" "$agent"
-launchctl kickstart -k "$domain/$label"
 echo "Green Wall installed: $app"
 echo "Look for the leaf in the menu bar. Log: ~/Library/Logs/Green Wall.log"

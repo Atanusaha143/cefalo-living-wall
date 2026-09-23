@@ -61,6 +61,14 @@ let consoleScript = """
     }
     const log = console.log;
     console.log = (...parts) => { if (String(parts[0]).startsWith('SMOKE ')) post('smoke', parts); log.apply(console, parts); };
+    // WebKit reports uncaught errors from this private-scheme page only as "Script error.",
+    // so errors inside frame and timer callbacks are caught here with their details first.
+    for (const name of ['requestAnimationFrame', 'setTimeout', 'setInterval']) {
+      const original = window[name];
+      window[name] = (fn, ...rest) => original((...args) => {
+        try { return fn(...args); } catch (e) { post('error', [`${name}: ${e && e.name}: ${e && e.message}\n${e && e.stack}`]); throw e; }
+      }, ...rest);
+    }
     addEventListener('error', (e) => post('error', [`${e.message} at ${e.filename}:${e.lineno}`]));
     addEventListener('unhandledrejection', (e) => post('error', [e.reason]));
   })();
@@ -108,6 +116,8 @@ final class Wallpaper: NSObject, WKNavigationDelegate {
   private var inside = false
   private var crashes = 0
   private var stableSince = Date()
+  private var pointerSends = 0
+  private var lastSent = NSPoint(x: -1, y: -1)
 
   init(screen: NSScreen, root: URL) {
     view = makeWebView(frame: screen.frame, root: root, messages: messages)
@@ -186,7 +196,18 @@ final class Wallpaper: NSObject, WKNavigationDelegate {
       return
     }
     inside = true
+    pointerSends += 1
+    lastSent = point
     view.evaluateJavaScript(String(format: "wallSetPointer(%.1f,%.1f)", point.x, point.y))
+  }
+
+  /// Log what this screen's host side and page are doing (see Controller's SIGUSR1 dump).
+  func report(_ index: Int) {
+    log("screen \(index): loaded \(loaded) rate \(rate) paused \(paused) failed \(failed) inside \(inside) pointerSends \(pointerSends) lastSent \(lastSent) window \(window.frame)")
+    guard loaded else { return }
+    view.evaluateJavaScript("JSON.stringify(wallState())") { value, error in
+      log("screen \(index) page: \(value ?? error?.localizedDescription ?? "no answer")")
+    }
   }
 
   func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -236,14 +257,12 @@ enum DesktopPicture {
       log("could not copy the still picture: \(error.localizedDescription)")
       return
     }
-    var saved = UserDefaults.standard.dictionary(forKey: savedKey) as? [String: String] ?? [:]
+    // Remember the user's pictures, and persist that, before changing anything: if the
+    // process died in between, the next launch would only see our own still.
+    let previous = UserDefaults.standard.dictionary(forKey: savedKey) as? [String: String] ?? [:]
+    let current = Dictionary(NSScreen.screens.map { (id($0), NSWorkspace.shared.desktopImageURL(for: $0)) }) { a, _ in a }
+    UserDefaults.standard.set(picturesToSave(current: current, saved: previous, still: still), forKey: savedKey)
     for screen in NSScreen.screens {
-      let key = id(screen)
-      if saved[key] == nil, let current = NSWorkspace.shared.desktopImageURL(for: screen),
-        current.standardizedFileURL.path != still.standardizedFileURL.path
-      {
-        saved[key] = current.absoluteString
-      }
       do {
         try NSWorkspace.shared.setDesktopImageURL(
           still, for: screen,
@@ -252,19 +271,27 @@ enum DesktopPicture {
         log("could not set the desktop picture: \(error.localizedDescription)")
       }
     }
-    UserDefaults.standard.set(saved, forKey: savedKey)
   }
 
-  /// Put back the pictures saved by install(), where those files still exist.
-  static func restore() {
+  /// Put back the pictures saved by install(). Returns false, keeping the record, if any
+  /// screen still shows our still afterwards (uninstall then keeps the still's file).
+  static func restore() -> Bool {
     let saved = UserDefaults.standard.dictionary(forKey: savedKey) as? [String: String] ?? [:]
+    let targets = picturesToRestore(
+      screens: NSScreen.screens.map(id), saved: saved, exists: { FileManager.default.fileExists(atPath: $0.path) })
     for screen in NSScreen.screens {
-      guard let text = saved[id(screen)], let url = URL(string: text),
-        FileManager.default.fileExists(atPath: url.path)
-      else { continue }
+      guard let url = targets[id(screen)] else { continue }
       try? NSWorkspace.shared.setDesktopImageURL(url, for: screen, options: [:])
     }
+    let stuck = NSScreen.screens.filter {
+      NSWorkspace.shared.desktopImageURL(for: $0)?.standardizedFileURL.path == still.standardizedFileURL.path
+    }
+    if !stuck.isEmpty {
+      log("could not restore the desktop picture on \(stuck.count) screen(s)")
+      return false
+    }
     UserDefaults.standard.removeObject(forKey: savedKey)
+    return true
   }
 }
 
@@ -272,8 +299,9 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private let root = Bundle.main.resourceURL!.appendingPathComponent("scene")
   private var screens: [Wallpaper] = []
   private var layout: [CGRect] = []
-  private var awake = true
+  private var power = PowerState()
   private var blockers: [CGRect] = []
+  private var diagnostics: DispatchSourceSignal?
   private var applied = 0
   private var lastPoint = NSPoint(x: -1e4, y: -1e4)
   private var pointerTimer: Timer?
@@ -287,7 +315,6 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private var paused =
     UserDefaults.standard.object(forKey: "paused") as? Bool
     ?? NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-  private var lowPower: Bool { ProcessInfo.processInfo.isLowPowerModeEnabled }
 
   func applicationDidFinishLaunching(_ note: Notification) {
     DesktopPicture.install(photo: root.appendingPathComponent("assets/wall.jpg"))
@@ -295,23 +322,33 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     addMenu()
     NotificationCenter.default.addObserver(
       self, selector: #selector(screensChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
+    // Each reason to stay still is tracked on its own (see PowerState).
     let workspace = NSWorkspace.shared.notificationCenter
-    for (name, value) in [
-      (NSWorkspace.screensDidSleepNotification, false), (NSWorkspace.screensDidWakeNotification, true),
-      (NSWorkspace.sessionDidResignActiveNotification, false), (NSWorkspace.sessionDidBecomeActiveNotification, true),
-    ] {
-      workspace.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-        self?.awake = value
+    let events: [(NSNotification.Name, (inout PowerState) -> Void)] = [
+      (NSWorkspace.screensDidSleepNotification, { $0.screensAsleep = true }),
+      (NSWorkspace.screensDidWakeNotification, { $0.screensAsleep = false }),
+      (NSWorkspace.sessionDidResignActiveNotification, { $0.sessionInactive = true }),
+      (NSWorkspace.sessionDidBecomeActiveNotification, { $0.sessionInactive = false }),
+    ]
+    for (name, change) in events {
+      _ = workspace.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+        guard let self else { return }
+        change(&self.power)
+        self.applyRate()
+      }
+    }
+    for (name, locked) in [("com.apple.screenIsLocked", true), ("com.apple.screenIsUnlocked", false)] {
+      _ = DistributedNotificationCenter.default().addObserver(forName: .init(name), object: nil, queue: .main) { [weak self] _ in
+        self?.power.locked = locked
         self?.applyRate()
       }
     }
-    for (name, value) in [("com.apple.screenIsLocked", false), ("com.apple.screenIsUnlocked", true)] {
-      DistributedNotificationCenter.default().addObserver(forName: .init(name), object: nil, queue: .main) { [weak self] _ in
-        self?.awake = value
-        self?.applyRate()
-      }
-    }
-    NotificationCenter.default.addObserver(forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main) {
+    // `kill -USR1 <pid>` logs what the host and each page are doing.
+    signal(SIGUSR1, SIG_IGN)
+    diagnostics = DispatchSource.makeSignalSource(signal: SIGUSR1, queue: .main)
+    diagnostics?.setEventHandler { [weak self] in self?.report() }
+    diagnostics?.resume()
+    _ = NotificationCenter.default.addObserver(forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main) {
       [weak self] _ in self?.applyRate()
     }
   }
@@ -351,8 +388,17 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
   }
 
+  private func report() {
+    let point = NSEvent.mouseLocation
+    let primary = NSScreen.screens.first?.frame.height ?? 0
+    let visible = layout.map { visibleFraction(of: cgFrame($0), blockers: blockers) }
+    log("host: power \(power) paused \(paused) applied \(applied) pointerRate \(pointerRate) blockers \(blockers.count) visible \(visible) cursor \(point) overWindow \(blockers.contains { $0.contains(CGPoint(x: point.x, y: primary - point.y)) })")
+    for (index, screen) in screens.enumerated() { screen.report(index) }
+  }
+
   func applyRate() {
-    let still = lowPower || !awake
+    power.lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
+    let still = power.still
     blockers = still || paused ? [] : windowBlockers()
     applied = 0
     for (index, screen) in screens.enumerated() {
@@ -427,15 +473,9 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
   /// The status line says why the wall is still: unexplained stillness reads as a fault.
   func menuNeedsUpdate(_ menu: NSMenu) {
-    state.title =
-      screens.contains(where: \.failed) ? "Scene failed to load"
-      : lowPower ? "Stopped — Low Power Mode"
-      : paused ? "Paused"
-      : !awake ? "Stopped — screen asleep"
-      : applied == 0 ? "Stopped — covered by windows"
-      : "Running · \(applied) fps"
+    state.title = statusLine(failed: screens.contains(where: \.failed), power: power, paused: paused, rate: applied)
     pauseItem.title = paused ? "Resume" : "Pause"
-    pauseItem.isEnabled = !lowPower
+    pauseItem.isEnabled = !power.lowPower
     waterItem.isEnabled = !paused && applied > 0
   }
 
@@ -490,8 +530,7 @@ enum GreenWall {
     let app = NSApplication.shared
     let arguments = CommandLine.arguments
     if arguments.contains("--restore-desktop-picture") {
-      DesktopPicture.restore()
-      return
+      exit(DesktopPicture.restore() ? 0 : 1)
     }
     let delegate: NSApplicationDelegate = arguments.contains("--check") ? SceneCheck() : Controller()
     app.setActivationPolicy(.accessory)
