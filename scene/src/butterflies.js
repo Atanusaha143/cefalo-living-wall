@@ -1,7 +1,9 @@
 import * as THREE from '../vendor/three.module.js';
 
 // Draws what butterfly-brain.js decides: up to two butterflies, each a body and two
-// hinged wing pairs that fold toward the viewer to flap, plus a soft shadow.
+// hinged wing pairs that fold toward the viewer to flap, plus a soft shadow. Every
+// material is `transparent` so all parts share Three's transparent list and
+// renderOrder puts the shadow under the butterfly.
 const PALETTES = {
   orange: { inner: '#ffb347', outer: '#e06a12', edge: '#241208', spot: '#ffffff', body: '#241208' },
   cream: { inner: '#fffaf0', outer: '#eadba6', edge: '#5a4a2a', spot: '#3a3020', body: '#3a3020' },
@@ -34,10 +36,10 @@ function wingMesh(shape, palette, shadow, order) {
   g.setAttribute('color', new THREE.Float32BufferAttribute(colours, 3));
   const fill = new THREE.Mesh(g, shadow
     ? new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthTest: false, depthWrite: false })
-    : new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, depthTest: false, depthWrite: false }));
+    : new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: true, depthTest: false, depthWrite: false }));
   fill.renderOrder = order + 1;
   if (shadow) return [fill];
-  const edge = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: palette.edge, side: THREE.DoubleSide, depthTest: false, depthWrite: false }));
+  const edge = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: palette.edge, side: THREE.DoubleSide, transparent: true, depthTest: false, depthWrite: false }));
   edge.scale.setScalar(1.1);
   edge.renderOrder = order;
   return [edge, fill];
@@ -50,7 +52,7 @@ function makeRig(species, shadow) {
     const side = new THREE.Group();
     for (const shape of wingShapes()) for (const mesh of wingMesh(shape, palette, shadow, order * 10)) side.add(mesh);
     if (!shadow) {
-      const spot = new THREE.Mesh(new THREE.CircleGeometry(0.8, 8), new THREE.MeshBasicMaterial({ color: palette.spot, depthTest: false, depthWrite: false }));
+      const spot = new THREE.Mesh(new THREE.CircleGeometry(0.8, 8), new THREE.MeshBasicMaterial({ color: palette.spot, transparent: true, depthTest: false, depthWrite: false }));
       spot.position.set(5.8, 16.6, 0);
       spot.renderOrder = order * 10 + 2;
       side.add(spot);
@@ -60,7 +62,7 @@ function makeRig(species, shadow) {
     root.add(side);
   }
   if (!shadow) {
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(1.4, 11, 4, 8), new THREE.MeshBasicMaterial({ color: palette.body, depthTest: false, depthWrite: false }));
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(1.4, 11, 4, 8), new THREE.MeshBasicMaterial({ color: palette.body, transparent: true, depthTest: false, depthWrite: false }));
     body.rotation.z = Math.PI / 2;
     body.renderOrder = order * 10 + 3;
     root.add(body);

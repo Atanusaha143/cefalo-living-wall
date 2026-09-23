@@ -140,15 +140,18 @@ export function createLeaves(leaves, pixels, random, springs) {
   const make = (shadow, order) => {
     const material = new THREE.ShaderMaterial({
       uniforms: { ...uniforms, uShadow: { value: shadow ? 1 : 0 }, uOffset: { value: new THREE.Vector2(shadow ? 2 : 0, shadow ? -3 : 0) } },
-      vertexShader: VERTEX, fragmentShader: FRAGMENT, side: THREE.DoubleSide,
-      transparent: shadow, depthTest: false, depthWrite: false,
+      // All leaf layers sit in Three's transparent list (drawn after every opaque
+      // object), so renderOrder alone decides shadow → stems → blades; single pass
+      // keeps the double-sided blades from being drawn twice.
+      vertexShader: VERTEX, fragmentShader: FRAGMENT, side: THREE.DoubleSide, forceSinglePass: true,
+      transparent: true, depthTest: false, depthWrite: false,
     });
     const mesh = new THREE.Mesh(g, material);
     mesh.frustumCulled = false;
     mesh.renderOrder = order;
     return mesh;
   };
-  const stems = new THREE.Mesh(stemGeometry(leaves, random), new THREE.MeshBasicMaterial({ color: '#2a4a1c', depthTest: false, depthWrite: false }));
+  const stems = new THREE.Mesh(stemGeometry(leaves, random), new THREE.MeshBasicMaterial({ color: '#2a4a1c', transparent: true, depthTest: false, depthWrite: false }));
   stems.renderOrder = 2;
   const group = new THREE.Group();
   group.add(make(true, 1), stems, make(false, 3));
