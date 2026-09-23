@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <!-- No network access of any kind: everything the scene needs is bundled. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' data: blob:">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Green Wall</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #070b06; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+    #debug { position: fixed; left: 8px; top: 8px; padding: 4px 6px; border-radius: 4px;
+             font: 12px ui-monospace, monospace; color: #dfe; background: #000a; }
+  </style>
+</head>
+<body>
+  <canvas id="wall"></canvas>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
