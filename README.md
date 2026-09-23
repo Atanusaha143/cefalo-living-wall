@@ -58,7 +58,14 @@ and makes no network requests.
 **Multiple displays?** Each display gets its own wall; Water mists all of them.
 
 **Why is it not moving?** Open the menu: the first line says why (paused, covered by
-windows, Low Power Mode). If Reduce Motion is on, it starts paused until you choose Resume.
+windows, screen locked, Low Power Mode). If Reduce Motion is on, it starts paused until
+you choose Resume.
+
+**Where is the leaf icon?** On a MacBook with a notch, macOS hides menu-bar icons that do
+not fit beside it. Quit or ⌘-drag away another icon to make room.
+
+**Something looks wrong?** `pkill -USR1 -f "Green Wall.app/Contents/MacOS/Green Wall"`
+writes what the app and each display's scene are doing to `~/Library/Logs/Green Wall.log`.
 
 ## Develop
 

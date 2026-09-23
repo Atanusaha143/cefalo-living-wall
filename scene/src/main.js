@@ -91,7 +91,7 @@ async function boot() {
   resize();
   addEventListener('resize', resize);
 
-  let simTime = 0, cpuMs = 0, frameMs = 0, measure = false, drawn = 0, pointer = null;
+  let simTime = 0, cpuMs = 0, frameMs = 0, measure = false, drawn = 0, pointer = null, pointerCalls = 0;
   const onePixel = new Uint8Array(4);
   const held = new Map();                          // leaf index -> resting butterfly id
   function holdPerches() {
@@ -134,6 +134,7 @@ async function boot() {
 
   live = {
     pointer(px, py) {
+      pointerCalls++;
       const p = toWall(fit, px, py, innerWidth, innerHeight);
       pointer = { x: p.x, y: p.y, inside: true };
       photoLayer.poke(p.x, p.y, simTime);
@@ -144,6 +145,12 @@ async function boot() {
     setPaused: (paused) => loop.setPaused(paused),
     setMaxFps: (fps) => loop.setMaxFps(fps),
   };
+  // What the scene is doing, for the host's diagnostics dump (kill -USR1) and the smoke test.
+  window.wallState = () => ({
+    drawn, running: loop.running, simTime: +simTime.toFixed(2), cpuMs: +cpuMs.toFixed(2),
+    pointerCalls, pointer, bentLeaves: springs.activeCount, butterflies: brain.flyers.length,
+    view: [innerWidth, innerHeight, devicePixelRatio], fit,
+  });
   /** Run the simulation from 0 to t without drawing, so a frozen frame shows what t would. */
   function fastForward(t) {
     for (let s = 1 / 30; s <= t; s += 1 / 30) {
@@ -168,7 +175,8 @@ function smokeReport(renderer) {
   const mean = lum.reduce((a, b) => a + b, 0) / lum.length;
   const sd = Math.sqrt(lum.reduce((a, b) => a + (b - mean) ** 2, 0) / lum.length);
   const bridge = ['wallSetPointer', 'wallPointerOut', 'wallWater', 'wallSetPaused', 'wallSetMaxFps'].every((f) => typeof window[f] === 'function');
-  console.log(`SMOKE ${JSON.stringify({ webgl2: gl instanceof WebGL2RenderingContext, bridge, mean, sd, nonBlank: mean > 0.03 && mean < 0.95 && sd > 0.02 })}`);
+  const diagnostics = typeof window.wallState === 'function' && window.wallState().drawn >= 1;
+  console.log(`SMOKE ${JSON.stringify({ webgl2: gl instanceof WebGL2RenderingContext, bridge, diagnostics, mean, sd, nonBlank: mean > 0.03 && mean < 0.95 && sd > 0.02 })}`);
 }
 
 boot().then((stats) => {
