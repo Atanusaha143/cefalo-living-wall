@@ -5,7 +5,7 @@ import { WALL_W } from './wall.js';
 export const SWAY_PERIOD = 5;        // s
 export const SWAY_CROSSING = 2.6;    // s for the breeze's phase to cross the wall
 export const GUST_CROSSING = 2.4;    // s for a gust front to cross the wall
-export const GUST_GAP = [15, 40];    // s between gust starts
+export const GUST_GAP = [7, 14];     // s between gust starts (lively; the user chose "much livelier")
 export const GUST_STRENGTH = [0.6, 1.2];
 // A gust at one point: rise, overshoot back, small rebound, settle. [time s, value]
 const GUST_SHAPE = [[0, 0], [1, 1], [2, -0.45], [3, 0.2], [4, 0]];
@@ -48,7 +48,7 @@ export function gustAt(x, t, start, strength, delay = 0) {
 }
 
 // Gust starts are drawn lazily from the seeded random, so the same seed gives the same
-// weather. Gaps (>= 15 s) are longer than a gust lasts anywhere on the wall (~6.4 s),
+// weather. Gaps (>= 7 s) outlast a gust anywhere on the wall (at most ~6.95 s with leaf delays),
 // so at most one gust is ever active and the shaders need only the latest one.
 export function createWind(random, { firstGust = random.range(...GUST_GAP) } = {}) {
   const starts = [{ start: firstGust, strength: random.range(...GUST_STRENGTH) }];

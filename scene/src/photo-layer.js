@@ -85,7 +85,7 @@ export function createPhotoLayer(photo, random) {
           float drift = uTime * ${D.coarse} + gust * 0.004;
           vec2 n = texture2D(uNoise, p / 3840.0 + vec2(drift, 0.0)).rg * 2.0 - 1.0;
           n += 0.5 * (texture2D(uNoise, p / 1280.0 + vec2(uTime * ${D.fine} + gust * 0.007, uTime * ${D.fineVertical})).rg * 2.0 - 1.0);
-          offset = n * (2.0 + 1.0 * abs(swayAt(p.x, 0.0)) + 2.5 * abs(gust));
+          offset = n * (3.0 + 1.5 * abs(swayAt(p.x, 0.0)) + 2.5 * abs(gust));   // livelier, short of smearing
           float d = distance(p, uPointer);
           if (uRipple > 0.001 && d < 60.0) {
             offset += (p - uPointer) / max(d, 1.0) * 3.0 * uRipple * (1.0 - d / 60.0) * sin(d * 0.3 - uTime * 9.0);

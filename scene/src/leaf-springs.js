@@ -1,7 +1,8 @@
 // Cursor physics for the front leaves: a leaf bends away from a nearby cursor, gets a
 // flick when the cursor brushes past, and springs back with a little overshoot.
 // Integrated in fixed 60 Hz substeps so it feels the same at any frame-rate cap.
-export const SPRING = { reach: 90, maxBend: 38, k: 0.08, damping: 0.87, clamp: 55, flick: 0.22, step: 1 / 60 };
+// Strong and wide (the user chose "much livelier").
+export const SPRING = { reach: 140, maxBend: 55, k: 0.08, damping: 0.87, clamp: 70, flick: 0.35, step: 1 / 60 };
 const REST = 0.04;
 
 export function createSprings(leaves, options = {}) {

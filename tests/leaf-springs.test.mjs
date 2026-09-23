@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSprings } from '../scene/src/leaf-springs.js';
+import { createSprings, SPRING } from '../scene/src/leaf-springs.js';
 
 // One upright leaf: stem base at (100, 100), midpoint 24 units above it.
 const upright = () => [{ x: 100, y: 100, midX: 100, midY: 76, ux: 1, uy: 0 }];
@@ -38,7 +38,21 @@ test('returns to rest within 2 s after the cursor leaves', () => {
   assert.equal(s.activeCount, 0);
 });
 
-test('never exceeds 55 degrees, even when flicked hard', () => {
+test('a cursor right beside a leaf bends it hard (lively, user choice)', () => {
+  const s = createSprings(upright());
+  s.setPointer(110, 76, 0);
+  run(s, 1);
+  assert.ok(s.angle[0] < -40, `angle ${s.angle[0]}`);
+});
+
+test('the cursor reaches leaves 120 units away', () => {
+  const s = createSprings(upright());
+  s.setPointer(220, 76, 0);
+  run(s, 1);
+  assert.ok(s.angle[0] < -0.5, `angle ${s.angle[0]}`);
+});
+
+test('never exceeds the clamp, even when flicked hard', () => {
   const s = createSprings(upright());
   let max = 0;
   for (let i = 0; i < 200; i++) {
@@ -46,7 +60,7 @@ test('never exceeds 55 degrees, even when flicked hard', () => {
     s.step(1 / 60);
     max = Math.max(max, Math.abs(s.angle[0]));
   }
-  assert.ok(max <= 55, `max ${max}`);
+  assert.ok(max <= SPRING.clamp, `max ${max}`);
 });
 
 test('same result at 15, 30 and 60 fps', () => {

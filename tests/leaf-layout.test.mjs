@@ -22,6 +22,13 @@ for (const seed of [1, 7, 42, 2026]) {
   });
 }
 
+test('leaves sway 6.6-14.4 degrees and gusts push them up to ~30 (lively, user choice)', () => {
+  const leaves = generateLeaves(createRandom(7));
+  for (const l of leaves) assert.ok(Math.abs(l.swayAmp) >= 6.6 && Math.abs(l.swayAmp) <= 14.4, `sway ${l.swayAmp}`);
+  const strongest = Math.max(...leaves.map((l) => Math.abs(l.gustAmp)));
+  assert.ok(strongest > 25 && strongest <= 36, `strongest gust ${strongest}`);
+});
+
 test('deep leaves come first, then top-to-bottom', () => {
   const leaves = generateLeaves(createRandom(7));
   const firstFront = leaves.findIndex((l) => !l.deep);

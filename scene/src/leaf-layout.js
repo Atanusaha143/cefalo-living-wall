@@ -40,10 +40,10 @@ export function generateLeaves(random, P = LAYOUT) {
           midX: mid.x, midY: mid.y, tipX: tip.x, tipY: tip.y,
           // Direction a positive (clockwise) bend moves the tip.
           ux: Math.cos(rad(angle)), uy: Math.sin(rad(angle)),
-          swayAmp: random.range(2.2, 4.8) * (random.chance(0.5) ? 1 : -1),
+          swayAmp: random.range(6.6, 14.4) * (random.chance(0.5) ? 1 : -1),   // lively (user choice)
           swayPhase: random.range(0, 0.7),
           // Wind always pushes tips downwind: strongest for leaves pointing up or down.
-          gustAmp: 13 * Math.cos(rad(angle)) * random.range(0.7, 1.2),
+          gustAmp: 30 * Math.cos(rad(angle)) * random.range(0.85, 1.2),
           gustDelay: (py / 1067) * 0.35 + random.range(0, 0.2),
         });
       }
