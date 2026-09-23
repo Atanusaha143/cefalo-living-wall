@@ -1,19 +1,19 @@
 import Foundation
 
 /// Every reason the wall may not draw, kept apart: waking the display behind the lock
-/// screen must not start the wall while the screen is still locked.
+/// screen must not start the wall while the screen is still locked. Low Power Mode is
+/// tracked for diagnostics but does not stop the wall (the user's choice).
 struct PowerState: Equatable {
   var lowPower = false
   var locked = false
   var screensAsleep = false
   var sessionInactive = false
-  var still: Bool { lowPower || locked || screensAsleep || sessionInactive }
+  var still: Bool { locked || screensAsleep || sessionInactive }
 }
 
 /// The menu's first line: why the wall is doing what it does.
 func statusLine(failed: Bool, power: PowerState, paused: Bool, rate: Int) -> String {
   failed ? "Scene failed to load"
-    : power.lowPower ? "Stopped — Low Power Mode"
     : paused ? "Paused"
     : power.locked ? "Stopped — screen locked"
     : power.screensAsleep || power.sessionInactive ? "Stopped — screen asleep"

@@ -110,6 +110,8 @@ final class Wallpaper: NSObject, WKNavigationDelegate {
   let view: WKWebView
   private let messages = PageMessages()
   private(set) var failed = false
+  /// The page said `ready`: its bridge functions exist.
+  private(set) var ready = false
   private var loaded = false
   private var rate = -1
   private var paused = false
@@ -119,7 +121,8 @@ final class Wallpaper: NSObject, WKNavigationDelegate {
   private var pointerSends = 0
   private var lastSent = NSPoint(x: -1, y: -1)
 
-  init(screen: NSScreen, root: URL) {
+  /// `visible: false` keeps the window transparent (used by `--check`).
+  init(screen: NSScreen, root: URL, visible: Bool = true) {
     view = makeWebView(frame: screen.frame, root: root, messages: messages)
     window = DesktopWindow(contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false, screen: screen)
     super.init()
@@ -136,6 +139,7 @@ final class Wallpaper: NSObject, WKNavigationDelegate {
     window.canHide = false
     window.contentView = view
     window.setFrame(screen.frame, display: true)
+    if !visible { window.alphaValue = 0 }
     window.orderFrontRegardless()
     view.load(URLRequest(url: sceneURL))
   }
@@ -152,7 +156,12 @@ final class Wallpaper: NSObject, WKNavigationDelegate {
   private func received(_ message: [String: Any]) {
     switch message["type"] as? String {
     case "ready":
+      // Only now do the page's wall* functions exist: WebKit reports the navigation
+      // finished while the scene's module has not run yet, and calls made then are lost.
       failed = false
+      ready = true
+      loaded = true
+      send()
     case "failed":
       failed = true
       log("the scene failed: \(message["reason"] ?? "unknown")")
@@ -201,6 +210,11 @@ final class Wallpaper: NSObject, WKNavigationDelegate {
     view.evaluateJavaScript(String(format: "wallSetPointer(%.1f,%.1f)", point.x, point.y))
   }
 
+  /// The page's wallState() as JSON, or nil before it can answer.
+  func pageState(_ done: @escaping (String?) -> Void) {
+    view.evaluateJavaScript("JSON.stringify(wallState())") { value, _ in done(value as? String) }
+  }
+
   /// Log what this screen's host side and page are doing (see Controller's SIGUSR1 dump).
   func report(_ index: Int) {
     log("screen \(index): loaded \(loaded) rate \(rate) paused \(paused) failed \(failed) inside \(inside) pointerSends \(pointerSends) lastSent \(lastSent) window \(window.frame)")
@@ -210,10 +224,6 @@ final class Wallpaper: NSObject, WKNavigationDelegate {
     }
   }
 
-  func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-    loaded = true
-    send()
-  }
 
   func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
     log("the scene did not load: \(error.localizedDescription)")
@@ -223,6 +233,8 @@ final class Wallpaper: NSObject, WKNavigationDelegate {
   /// resets after five minutes of stable running.
   func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
     loaded = false
+    ready = false
+    inside = false
     if Date().timeIntervalSince(stableSince) > 300 { crashes = 0 }
     let wait = min(60, 2 * pow(2, Double(crashes)))
     crashes += 1
@@ -475,7 +487,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
   func menuNeedsUpdate(_ menu: NSMenu) {
     state.title = statusLine(failed: screens.contains(where: \.failed), power: power, paused: paused, rate: applied)
     pauseItem.title = paused ? "Resume" : "Pause"
-    pauseItem.isEnabled = !power.lowPower
+    pauseItem.isEnabled = true
     waterItem.isEnabled = !paused && applied > 0
   }
 
@@ -495,6 +507,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
 final class SceneCheck: NSObject, NSApplicationDelegate {
   private let messages = PageMessages()
   private var window: NSWindow?
+  private var wall: Wallpaper?
 
   func applicationDidFinishLaunching(_ note: Notification) {
     let root = Bundle.main.resourceURL!.appendingPathComponent("scene")
@@ -511,14 +524,47 @@ final class SceneCheck: NSObject, NSApplicationDelegate {
       if type == "failed" { Self.finish(false, "scene failed: \(message["reason"] ?? "")") }
       if type == "log", level == "error" { Self.finish(false, "page error: \(message["message"] ?? "")") }
       if type == "log", level == "smoke", let text = message["message"] as? String {
-        Self.finish(text.contains("\"nonBlank\":true") && text.contains("\"webgl2\":true"), text)
+        guard text.contains("\"nonBlank\":true") && text.contains("\"webgl2\":true") else { Self.finish(false, text) }
+        print("Frame check passed: \(text)")
+        self.checkBridge(root: root)
       }
     }
     view.load(URLRequest(url: URL(string: "\(scheme)://local/index.html?t=10&smoke")!))
     DispatchQueue.main.asyncAfter(deadline: .now() + 30) { Self.finish(false, "timed out waiting for the scene") }
   }
 
-  static func finish(_ ok: Bool, _ detail: String) {
+  /// A hidden live wall driven exactly as the host drives one: the rate is set before the
+  /// page has loaded, then the scene must really stop, restart and receive the cursor.
+  private func checkBridge(root: URL) {
+    let wall = Wallpaper(screen: NSScreen.main ?? NSScreen.screens[0], root: root, visible: false)
+    self.wall = wall
+    wall.setPaused(false)
+    wall.setRate(0)
+    func expect(_ what: String, after delay: Double, _ test: @escaping (String) -> Bool, then next: @escaping () -> Void) {
+      DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+        wall.pageState { state in
+          guard let state, test(state) else { Self.finish(false, "\(what): \(state ?? "no answer")") }
+          next()
+        }
+      }
+    }
+    func whenReady(_ next: @escaping () -> Void) {
+      if wall.ready { next() } else { DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { whenReady(next) } }
+    }
+    whenReady {
+      expect("the scene kept running after the host asked for 0 fps", after: 1, { $0.contains("\"running\":false") }) {
+        wall.setRate(30)
+        expect("the scene did not restart at 30 fps", after: 1, { $0.contains("\"running\":true") }) {
+          wall.setPointer(NSPoint(x: 300, y: 300))
+          expect("the cursor did not reach the scene", after: 0.5, { !$0.contains("\"pointerCalls\":0") }) {
+            Self.finish(true, "the host can stop, start and steer the scene")
+          }
+        }
+      }
+    }
+  }
+
+  static func finish(_ ok: Bool, _ detail: String) -> Never {
     print(ok ? "Scene check passed: \(detail)" : "Scene check FAILED: \(detail)")
     exit(ok ? 0 : 1)
   }

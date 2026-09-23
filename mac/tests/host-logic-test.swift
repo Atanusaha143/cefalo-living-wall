@@ -25,8 +25,9 @@ enum HostLogicTest {
     check(!power.still, "unlocking lets it run again")
     check(statusLine(failed: false, power: power, paused: false, rate: 30) == "Running · 30 fps", "running status")
     power.lowPower = true
-    check(power.still && statusLine(failed: false, power: power, paused: true, rate: 0) == "Stopped — Low Power Mode",
-      "Low Power Mode wins over paused")
+    check(!power.still, "Low Power Mode does not stop the wall (user choice)")
+    check(statusLine(failed: false, power: power, paused: false, rate: 30) == "Running · 30 fps", "and it says it is running")
+    check(statusLine(failed: false, power: power, paused: true, rate: 0) == "Paused", "pausing still works in Low Power Mode")
 
     let still = URL(fileURLWithPath: "/Users/me/Library/Application Support/Green Wall/still.jpg")
     let mine = URL(fileURLWithPath: "/Users/me/Pictures/beach.jpg")
