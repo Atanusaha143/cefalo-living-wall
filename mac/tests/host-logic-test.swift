@@ -74,6 +74,10 @@ enum HostLogicTest {
     check(screenSaverSession(after: "com.apple.screensaver.didstart", running: false), "did start begins a session")
     check(!screenSaverSession(after: "com.apple.screensaver.didstop", running: true), "did stop ends it")
     check(screenSaverSession(after: "com.apple.screensaver.willstop", running: true), "will stop changes nothing (macOS 26 also sends it at start)")
+    // A host macOS starts *for* a run appears after "did start": it must still know.
+    check(screenSaverSessionAtLaunch(runningApps: ["com.apple.finder", "com.apple.ScreenSaver.Engine"]),
+      "a host started during a screen-saver run knows the session is on")
+    check(!screenSaverSessionAtLaunch(runningApps: ["com.apple.finder"]), "a pre-warmed host started between runs stays still")
 
     var covered = PowerState()
     covered.saverRunning = true

@@ -91,3 +91,10 @@ func screenSaverSession(after notification: String, running: Bool) -> Bool {
   default: return running
   }
 }
+
+/// Whether a screen-saver session is already on when a host process starts: macOS starts a
+/// fresh legacyScreenSaver *for* a run after posting "did start", so the new process would
+/// never hear it. ScreenSaverEngine runs exactly while a screen saver does.
+func screenSaverSessionAtLaunch(runningApps: [String]) -> Bool {
+  runningApps.contains("com.apple.ScreenSaver.Engine")
+}

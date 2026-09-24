@@ -35,6 +35,9 @@ enum SaverSession {
   static func observe() {
     guard !observing else { return }
     observing = true
+    let apps = NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier)
+    running = screenSaverSessionAtLaunch(runningApps: apps)
+    slog("host started: session \(running ? "running" : "stopped") (\(apps.count) apps visible)")
     for name in ["com.apple.screensaver.didstart", "com.apple.screensaver.didstop", "com.apple.screensaver.willstop"] {
       _ = DistributedNotificationCenter.default().addObserver(forName: .init(name), object: nil, queue: .main) { _ in
         let next = screenSaverSession(after: name, running: running)

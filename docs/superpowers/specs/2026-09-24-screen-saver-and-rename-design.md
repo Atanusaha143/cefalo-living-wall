@@ -205,6 +205,7 @@ logs, loginwindow logs) and the user's choices led to:
 | `willstop` also arrives just after a saver starts, at the host showing it: exiting (and later pausing) on it **froze the saver on screen** | Exit-on-`willstop` removed; `willstop` changes nothing |
 | AppKit visibility, occlusion, the window server's on-screen flag and the window level do **not** reliably tell which copy is shown (the level gate froze a run) | Not used |
 | `com.apple.screensaver.didstart` / `didstop` arrive as clean pairs around real runs | **Every full-screen copy draws exactly between them**, tracked once per host process (`SaverSession`, `saverShouldRun`); thumbnails always draw; outside `legacyScreenSaver` (e.g. `--check-saver`) always draws — user's choice |
+| A host macOS starts *for* a run appears ~0.7 s after "did start" and never hears it (the first run after an install stayed still) | At host start the session is taken from whether `ScreenSaverEngine` (`com.apple.ScreenSaver.Engine`) is running — it runs exactly while a screen saver does (`screenSaverSessionAtLaunch`) |
 | The wallpaper kept rendering under a running saver (review finding) | The app rests while the screen saver runs (`PowerState.saverRunning`, status *Stopped — screen saver*) |
 | Previews paused on `willstop` would stay frozen (review finding) | Previews are never paused |
 | On lock, macOS started and stopped the saver every ~30 s with its window not visible, and the lock screen showed a still | The lock screen is **not** live on macOS 26 (documented in the README) |
