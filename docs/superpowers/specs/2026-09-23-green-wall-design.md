@@ -437,3 +437,8 @@ Measured while planning: a full frame at the XDR display's 3024×1964 takes ≈3
 | **Much livelier motion** | Sway 6.6–14.4° (was 2.2–4.8°); gusts every 7–14 s (was 15–40 s), up to ~30° (was 13°); cursor reach 140 units (was 90), bend up to 55° (was 38°), clamp 70°, stronger flick; photo shimmer 3–7 units (was 2–5) |
 | Host↔page handshake | The host treats the page as reachable only after its `ready` message (WebKit reports navigation finished before the scene's module runs); `--check` now also drives a hidden wall end to end |
 | **Adjustable Motion** (user asked for motion "according to person's need") | Menu levels Calm (speed 0.7×, strength 0.35×), Gentle (0.85×, 0.6×), Lively (1×, 1× — the "much livelier" values above), Energetic (1.3×, 1.3×, **default**), Wild (1.6×, 1.6×). Speed runs the wind on its own clock (sway rhythm and gust frequency); strength scales leaf sway and gusts, the cursor's bend and flick, and the photo shimmer (capped at 1.3× so the photo never smears). Butterflies keep their pace. Code: `scene/src/motion.js` |
+
+## 11. Continued in
+
+`2026-09-24-screen-saver-and-rename-design.md`: the product is renamed **Cefalo Living Wall** everywhere,
+and gains a screen-saver version with its own Options and a one-time "use as screen saver" prompt.
