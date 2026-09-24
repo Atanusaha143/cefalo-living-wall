@@ -30,6 +30,10 @@ enum SaverSettings {
 enum SaverSession {
   private(set) static var running = false
   static let changed = Notification.Name("LivingWallSaverSessionChanged")
+  /// A new Motion level from the Options sheet (in-process; userInfo["level"]).
+  static let motionChanged = Notification.Name("LivingWallSaverMotionChanged")
+  /// The Options sheet's broadcast to every saver host; the level is the object.
+  static let motionBroadcast = "local.cefalo-living-wall.saver.motion"
   private static var observing = false
 
   static func observe() {
@@ -47,13 +51,76 @@ enum SaverSession {
         NotificationCenter.default.post(name: changed, object: nil)
       }
     }
+    _ = DistributedNotificationCenter.default().addObserver(forName: .init(motionBroadcast), object: nil, queue: .main) { note in
+      guard let level = motionFromBroadcast(note.object as? String) else { return }
+      slog("motion changed to \(level) by Options")
+      NotificationCenter.default.post(name: motionChanged, object: nil, userInfo: ["level": level])
+    }
+  }
+}
+
+/// The Options sheet. It keeps itself alive while shown: macOS may release the saver view
+/// that built it, and a button's target is only held weakly, so Done would do nothing.
+final class OptionsSheet: NSObject {
+  private(set) static var current: OptionsSheet?
+  let window: NSWindow
+  private let popup: NSPopUpButton
+
+  static func show() -> NSWindow {
+    if let current { return current.window }   // the host may ask more than once
+    let sheet = OptionsSheet()
+    current = sheet
+    slog("options sheet shown (motion \(SaverSettings.motion))")
+    return sheet.window
+  }
+
+  private override init() {
+    window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: 150), styleMask: [.titled], backing: .buffered, defer: false)
+    popup = NSPopUpButton(frame: NSRect(x: 90, y: 97, width: 190, height: 28), pullsDown: false)
+    super.init()
+    window.title = "Cefalo Living Wall"
+    let content = NSView(frame: NSRect(x: 0, y: 0, width: 360, height: 150))
+    let label = NSTextField(labelWithString: "Motion:")
+    label.frame = NSRect(x: 20, y: 102, width: 70, height: 20)
+    popup.addItems(withTitles: motionNames)
+    popup.selectItem(at: SaverSettings.motion - 1)
+    let hint = NSTextField(labelWithString: "How fast and how far the leaves move.")
+    hint.frame = NSRect(x: 20, y: 66, width: 320, height: 20)
+    hint.textColor = .secondaryLabelColor
+    let cancel = NSButton(title: "Cancel", target: self, action: #selector(cancel))
+    cancel.frame = NSRect(x: 168, y: 16, width: 84, height: 30)
+    cancel.keyEquivalent = "\u{1b}"
+    let done = NSButton(title: "Done", target: self, action: #selector(save))
+    done.frame = NSRect(x: 256, y: 16, width: 84, height: 30)
+    done.keyEquivalent = "\r"
+    for view in [label, popup, hint, cancel, done] { content.addSubview(view) }
+    window.contentView = content
+  }
+
+  @objc private func save() {
+    let level = motionLevel(stored: popup.indexOfSelectedItem + 1)
+    SaverSettings.motion = level
+    slog("options saved: motion \(level)")
+    // This process's views, and every other saver host (the thumbnail may live elsewhere).
+    NotificationCenter.default.post(name: SaverSession.motionChanged, object: nil, userInfo: ["level": level])
+    DistributedNotificationCenter.default().postNotificationName(
+      .init(SaverSession.motionBroadcast), object: "\(level)", userInfo: nil, deliverImmediately: true)
+    close()
+  }
+
+  @objc private func cancel() {
+    slog("options cancelled")
+    close()
+  }
+
+  private func close() {
+    if let parent = window.sheetParent { parent.endSheet(window) } else { window.close() }
+    Self.current = nil
   }
 }
 
 @objc(LivingWallSaverView)
 final class LivingWallSaverView: ScreenSaverView {
-  /// Every live view in this process, so Options can update the running preview.
-  private static let live = NSHashTable<LivingWallSaverView>.weakObjects()
   private let messages = PageMessages()
   private var web: WKWebView?
   private var ready = false
@@ -61,8 +128,6 @@ final class LivingWallSaverView: ScreenSaverView {
   private var readyTimer: Timer?
   private var lastRun: Bool?
   private var inHost: Bool { ProcessInfo.processInfo.processName == "legacyScreenSaver" }
-  private var sheet: NSWindow?
-  private var motionPopup: NSPopUpButton?
   private var resources: URL { Bundle(for: LivingWallSaverView.self).resourceURL! }
 
   override init?(frame: NSRect, isPreview: Bool) {
@@ -79,9 +144,9 @@ final class LivingWallSaverView: ScreenSaverView {
 
   private func setUp() {
     animationTimeInterval = 1   // the page animates itself; animateOneFrame stays empty
-    Self.live.add(self)
     SaverSession.observe()
     NotificationCenter.default.addObserver(self, selector: #selector(sessionChanged), name: SaverSession.changed, object: nil)
+    NotificationCenter.default.addObserver(self, selector: #selector(motionChanged), name: SaverSession.motionChanged, object: nil)
     slog("started preview \(isPreview) frame \(frame) host \(ProcessInfo.processInfo.processName)")
     load()
   }
@@ -131,6 +196,11 @@ final class LivingWallSaverView: ScreenSaverView {
   }
 
   @objc private func sessionChanged() { refresh() }
+
+  @objc private func motionChanged(_ note: Notification) {
+    guard let level = note.userInfo?["level"] as? Int else { return }
+    send("wallSetMotion(\(level))")
+  }
 
   // macOS 26 calls these for pre-warmed copies too, so they only inform the log.
   override func startAnimation() {
@@ -193,45 +263,5 @@ final class LivingWallSaverView: ScreenSaverView {
   // MARK: - Options sheet
 
   override var hasConfigureSheet: Bool { true }
-
-  override var configureSheet: NSWindow? {
-    let window = NSWindow(
-      contentRect: NSRect(x: 0, y: 0, width: 360, height: 150), styleMask: [.titled], backing: .buffered, defer: false)
-    window.title = "Cefalo Living Wall"
-    let content = NSView(frame: NSRect(x: 0, y: 0, width: 360, height: 150))
-    let label = NSTextField(labelWithString: "Motion:")
-    label.frame = NSRect(x: 20, y: 102, width: 70, height: 20)
-    let popup = NSPopUpButton(frame: NSRect(x: 90, y: 97, width: 190, height: 28), pullsDown: false)
-    popup.addItems(withTitles: motionNames)
-    popup.selectItem(at: SaverSettings.motion - 1)
-    let hint = NSTextField(labelWithString: "How fast and how far the leaves move.")
-    hint.frame = NSRect(x: 20, y: 66, width: 320, height: 20)
-    hint.textColor = .secondaryLabelColor
-    let cancel = NSButton(title: "Cancel", target: self, action: #selector(cancelOptions))
-    cancel.frame = NSRect(x: 168, y: 16, width: 84, height: 30)
-    cancel.keyEquivalent = "\u{1b}"
-    let done = NSButton(title: "Done", target: self, action: #selector(saveOptions))
-    done.frame = NSRect(x: 256, y: 16, width: 84, height: 30)
-    done.keyEquivalent = "\r"
-    for view in [label, popup, hint, cancel, done] { content.addSubview(view) }
-    window.contentView = content
-    motionPopup = popup
-    sheet = window
-    return window
-  }
-
-  @objc private func saveOptions() {
-    let level = (motionPopup?.indexOfSelectedItem ?? 3) + 1
-    SaverSettings.motion = level
-    for view in Self.live.allObjects { view.send("wallSetMotion(\(level))") }
-    closeSheet()
-  }
-
-  @objc private func cancelOptions() { closeSheet() }
-
-  private func closeSheet() {
-    guard let sheet else { return }
-    if let parent = sheet.sheetParent { parent.endSheet(sheet) } else { sheet.close() }
-    self.sheet = nil
-  }
+  override var configureSheet: NSWindow? { OptionsSheet.show() }
 }

@@ -98,3 +98,10 @@ func screenSaverSession(after notification: String, running: Bool) -> Bool {
 func screenSaverSessionAtLaunch(runningApps: [String]) -> Bool {
   runningApps.contains("com.apple.ScreenSaver.Engine")
 }
+
+/// The Motion level carried by the Options sheet's broadcast (the notification's object;
+/// sandboxed senders cannot attach userInfo): clamped, or nil when there is none.
+func motionFromBroadcast(_ object: String?) -> Int? {
+  guard let object, let level = Int(object) else { return nil }
+  return motionLevel(stored: level)
+}

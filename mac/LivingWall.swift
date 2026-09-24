@@ -601,6 +601,7 @@ final class SceneCheck: NSObject, NSApplicationDelegate {
 /// installer and mac/tests/run.sh.
 final class SaverCheck: NSObject, NSApplicationDelegate {
   private var windows: [NSWindow] = []
+  private var views: [NSView] = []
   private var pending = 2
 
   func applicationDidFinishLaunching(_ note: Notification) {
@@ -621,6 +622,7 @@ final class SaverCheck: NSObject, NSApplicationDelegate {
       window.orderFrontRegardless()
       view.startAnimation()
       windows.append(window)
+      views.append(view)
       let fps = isPreview ? 15 : 30
       poll(view, name: isPreview ? "preview" : "full screen", tries: 60) {
         $0.contains("\"running\":true") && $0.contains("\"maxFps\":\(fps)") && $0.contains("\"motion\":\(motion)")
@@ -641,8 +643,20 @@ final class SaverCheck: NSObject, NSApplicationDelegate {
         }
         print("Saver \(name) runs: \(state.prefix(90))…")
         self.pending -= 1
-        if self.pending == 0 { Self.finish(true, "the screen saver runs full screen and as a preview") }
+        if self.pending == 0 {
+          if name.hasSuffix("(Options)") { Self.finish(true, "the screen saver runs full screen and as a preview, and Options reach it") }
+          else { self.checkOptions() }
+        }
       }
+    }
+  }
+
+  /// Options' Done tells every view in the process the new level; both must switch to Calm.
+  private func checkOptions() {
+    pending = views.count
+    NotificationCenter.default.post(name: .init("LivingWallSaverMotionChanged"), object: nil, userInfo: ["level": 1])
+    for (index, view) in views.enumerated() {
+      poll(view, name: index == 0 ? "full screen (Options)" : "preview (Options)", tries: 20) { $0.contains("\"motion\":1") }
     }
   }
 
