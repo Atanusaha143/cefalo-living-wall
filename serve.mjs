@@ -32,6 +32,6 @@ export function createStaticServer(root) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT ?? 8080);
   createStaticServer(dirname(fileURLToPath(import.meta.url))).listen(port, '127.0.0.1', () => {
-    console.log(`Green Wall: http://127.0.0.1:${port}/scene/  (Ctrl+C to stop)`);
+    console.log(`Cefalo Living Wall: http://127.0.0.1:${port}/scene/  (Ctrl+C to stop)`);
   });
 }

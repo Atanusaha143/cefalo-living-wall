@@ -153,7 +153,7 @@ async function boot() {
   };
   // What the scene is doing, for the host's diagnostics dump (kill -USR1) and the smoke test.
   window.wallState = () => ({
-    drawn, running: loop.running, simTime: +simTime.toFixed(2), cpuMs: +cpuMs.toFixed(2),
+    drawn, running: loop.running, maxFps: loop.maxFps, simTime: +simTime.toFixed(2), cpuMs: +cpuMs.toFixed(2),
     pointerCalls, pointer, bentLeaves: springs.activeCount, butterflies: brain.flyers.length,
     motion: clock.level.level,
     view: [innerWidth, innerHeight, devicePixelRatio], fit,

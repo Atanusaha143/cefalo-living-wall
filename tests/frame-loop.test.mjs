@@ -85,3 +85,12 @@ test('renderAt draws once at the given time', () => {
   assert.equal(c.frames, 1);
   assert.equal(loop.simTime, 10);
 });
+
+test('reports its frame-rate cap', () => {
+  const loop = createFrameLoop(() => {}, display());
+  assert.equal(loop.maxFps, 30);
+  loop.setMaxFps(15);
+  assert.equal(loop.maxFps, 15);
+  loop.setMaxFps(-3);
+  assert.equal(loop.maxFps, 0);
+});

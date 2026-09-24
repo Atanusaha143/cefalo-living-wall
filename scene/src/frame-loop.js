@@ -48,6 +48,7 @@ export function createFrameLoop(draw, {
     renderAt(t) { simTime = t; draw(0, t); },
     start() { schedule(); },
     get running() { return running(); },
+    get maxFps() { return maxFps; },
     get pending() { return raf !== null || timer !== null; },
     get simTime() { return simTime; },
   };
