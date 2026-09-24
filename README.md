@@ -1,8 +1,8 @@
-# Green Wall
+# Cefalo Living Wall
 
-The Cefalo green wall as a live macOS desktop wallpaper. The leaves sway in a slow
-breeze, gusts roll across the wall, leaves bend away from your cursor, butterflies drop
-by now and then, and **Water** mists the whole wall.
+The Cefalo green wall as a live macOS desktop wallpaper and screen saver. The leaves
+sway in the breeze, gusts roll across the wall, leaves bend away from your cursor,
+butterflies drop by now and then, and **Water** mists the whole wall.
 
 It is the real photo with a layer of 3D leaves in front, rendered with Three.js in a
 web view that sits behind your desktop icons. Everything runs locally and offline.
@@ -18,10 +18,14 @@ From the project folder:
 sh mac/install.sh
 ```
 
-The script builds the app, checks that the scene loads, installs it at
-`~/Applications/Green Wall.app`, sets the photo as your desktop picture (your current
-one is remembered), and starts it now and at every login. macOS may show a
-"background item added" notification. Rerun the same command to update.
+The script builds the app and the screen saver, checks that both run, installs the app
+at `~/Applications/Cefalo Living Wall.app` and the screen saver in
+`~/Library/Screen Savers`, sets the photo as your desktop picture (your current one is
+remembered), and starts the app now and at every login. macOS may show a "background
+item added" notification. Rerun the same command to update.
+
+Coming from the earlier "Green Wall" version? The installer removes it, and your pause
+choice, Motion level and remembered original wallpaper carry over.
 
 ## Use
 
@@ -31,10 +35,19 @@ Click the leaf in the menu bar:
 - **Pause / Resume** stops or starts the animation, and is remembered.
 - **Motion** sets how fast and how far the leaves move: Calm, Gentle, Lively, Energetic
   (the default) or Wild. It applies to every display and is remembered.
+- **Screen Saver Settings…** opens System Settings on the Screen Saver page.
 - **Quit** closes it until you next log in.
 
 Move the cursor over the wall to brush the leaves. A resting butterfly takes off if the
 cursor comes close. Icons, clicks and dragging on the desktop work as usual.
+
+## Screen saver
+
+The first time the app starts it offers to open Screen Saver settings: choose
+**Cefalo Living Wall** there (System Settings → Screen Saver, under *Other*). It plays the
+living wall while your Mac is idle, on every display, and keeps playing after the Mac
+locks until you touch it. **Options…** next to it sets its own Motion level (Energetic
+by default). Nothing keeps running after it stops.
 
 ## Uninstall
 
@@ -42,8 +55,8 @@ cursor comes close. Icons, clicks and dragging on the desktop work as usual.
 sh mac/uninstall.sh
 ```
 
-This stops the app, removes it and its login item, and puts back your previous desktop
-picture.
+This stops the app, removes it, the screen saver and the login item (including any left
+from "Green Wall"), and puts back your previous desktop picture.
 
 ## FAQ
 
@@ -66,8 +79,12 @@ you choose Resume.
 **Where is the leaf icon?** On a MacBook with a notch, macOS hides menu-bar icons that do
 not fit beside it. Quit or ⌘-drag away another icon to make room.
 
-**Something looks wrong?** `pkill -USR1 -f "Green Wall.app/Contents/MacOS/Green Wall"`
-writes what the app and each display's scene are doing to `~/Library/Logs/Green Wall.log`.
+**Can the lock screen itself move?** No app can draw on the macOS lock screen; it shows
+your desktop picture. Use the screen saver: it keeps playing after the Mac locks.
+
+**Something looks wrong?** `pkill -USR1 -f "Cefalo Living Wall.app/Contents/MacOS/Cefalo Living Wall"`
+writes what the app and each display's scene are doing to `~/Library/Logs/Cefalo Living Wall.log`.
+The screen saver logs to the system log: `log show --last 10m --predicate 'subsystem == "local.cefalo-living-wall.saver"'`.
 
 ## Develop
 
@@ -77,7 +94,7 @@ Node.js 20 or newer; there is nothing to install.
 npm start            # browser preview at http://127.0.0.1:8080/scene/
 npm test             # unit tests
 npm run smoke        # headless Chrome loads the scene and checks it draws
-npm run test:mac     # coverage maths + the scene loading in WebKit
+npm run test:mac     # host logic + the app and screen saver running in WebKit
 ```
 
 In the browser: move the pointer over the leaves, click to water, Space to pause, keys

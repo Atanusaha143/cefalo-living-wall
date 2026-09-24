@@ -1,6 +1,6 @@
 # Cefalo Living Wall — screen saver and rename
 
-Design spec · 2026-09-24 · Status: awaiting review
+Design spec · 2026-09-24 · Status: approved
 Builds on: `2026-09-23-green-wall-design.md` (the live wallpaper, including its §9–§10 amendments)
 
 ## 1. Intent

@@ -1,99 +1,16 @@
-// Green Wall: the Cefalo green wall, alive, as the desktop wallpaper.
+// Cefalo Living Wall: the Cefalo green wall, alive, as the desktop wallpaper.
 //
 // One borderless window per screen sits at the desktop window level: above the still
 // desktop picture, below the icons, and it never takes a mouse event, so the desktop
-// works as usual. Each window shows the bundled scene in a web view. The scene is
-// served over a private URL scheme because file:// allows neither ES module imports
-// nor reading the photo's pixels. The cursor position is read on a timer and handed to
-// the scene; nothing else about the user's session is read except window positions.
+// works as usual. Each window shows the bundled scene in a web view (SceneWebView.swift).
+// The cursor position is read on a timer and handed to the scene; nothing else about the
+// user's session is read except window positions.
 
 import Cocoa
+import ScreenSaver
 import WebKit
 
-let scheme = "green-wall"
-let sceneURL = URL(string: "\(scheme)://local/index.html")!
-
-func log(_ message: String) { NSLog("green-wall: \(message)") }
-
-/// Serves the scene folder inside the app bundle to the web views.
-final class SceneHandler: NSObject, WKURLSchemeHandler {
-  private let root: URL
-  private static let types = [
-    "html": "text/html", "js": "text/javascript", "css": "text/css",
-    "json": "application/json", "jpg": "image/jpeg", "png": "image/png",
-  ]
-
-  init(root: URL) { self.root = root.standardizedFileURL }
-
-  func webView(_ webView: WKWebView, start task: WKURLSchemeTask) {
-    guard let url = task.request.url else { return }
-    let path = url.path.isEmpty || url.path == "/" ? "/index.html" : url.path
-    let file = root.appendingPathComponent(path).standardizedFileURL
-    guard file.path.hasPrefix(root.path + "/"), let data = try? Data(contentsOf: file) else {
-      task.didFailWithError(NSError(domain: NSURLErrorDomain, code: NSURLErrorFileDoesNotExist))
-      return
-    }
-    let type = Self.types[file.pathExtension.lowercased()] ?? "application/octet-stream"
-    task.didReceive(URLResponse(url: url, mimeType: type, expectedContentLength: data.count, textEncodingName: nil))
-    task.didReceive(data)
-    task.didFinish()
-  }
-
-  func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {}
-}
-
-/// Relays the page's messages ({type: "ready" | "failed" | "log", ...}) to a closure.
-final class PageMessages: NSObject, WKScriptMessageHandler {
-  var handler: ([String: Any]) -> Void = { _ in }
-  func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
-    handler(message.body as? [String: Any] ?? ["type": "log", "message": "\(message.body)"])
-  }
-}
-
-/// Forwards console errors and warnings (and the smoke report) to the host's log.
-let consoleScript = """
-  (() => {
-    const post = (level, parts) => window.webkit?.messageHandlers?.wall?.postMessage({
-      type: 'log', level, message: parts.map((p) => (p && p.stack) || String(p)).join(' ') });
-    for (const level of ['error', 'warn']) {
-      const original = console[level];
-      console[level] = (...parts) => { post(level, parts); original.apply(console, parts); };
-    }
-    const log = console.log;
-    console.log = (...parts) => { if (String(parts[0]).startsWith('SMOKE ')) post('smoke', parts); log.apply(console, parts); };
-    // WebKit reports uncaught errors from this private-scheme page only as "Script error.",
-    // so errors inside frame and timer callbacks are caught here with their details first.
-    for (const name of ['requestAnimationFrame', 'setTimeout', 'setInterval']) {
-      const original = window[name];
-      window[name] = (fn, ...rest) => original((...args) => {
-        try { return fn(...args); } catch (e) { post('error', [`${name}: ${e && e.name}: ${e && e.message}\n${e && e.stack}`]); throw e; }
-      }, ...rest);
-    }
-    addEventListener('error', (e) => post('error', [`${e.message} at ${e.filename}:${e.lineno}`]));
-    addEventListener('unhandledrejection', (e) => post('error', [e.reason]));
-  })();
-  """
-
-func makeWebView(frame: NSRect, root: URL, messages: PageMessages) -> WKWebView {
-  let settings = WKWebViewConfiguration()
-  settings.setURLSchemeHandler(SceneHandler(root: root), forURLScheme: scheme)
-  settings.suppressesIncrementalRendering = true
-  settings.websiteDataStore = .nonPersistent()
-  settings.userContentController.addUserScript(
-    WKUserScript(source: consoleScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
-  settings.userContentController.add(messages, name: "wall")
-  let view = WKWebView(frame: frame, configuration: settings)
-  // WebKit stops drawing a page whose window it thinks is covered, and AppKit never
-  // reports a desktop-level agent window as visible, so the scene would never start.
-  // The host works out what is covered itself (Coverage.swift).
-  if view.responds(to: NSSelectorFromString("setWindowOcclusionDetectionEnabled:"))
-    || view.responds(to: NSSelectorFromString("_setWindowOcclusionDetectionEnabled:"))
-  {
-    view.setValue(false, forKey: "windowOcclusionDetectionEnabled")
-  }
-  view.autoresizingMask = [.width, .height]
-  return view
-}
+func log(_ message: String) { NSLog("living-wall: \(message)") }
 
 /// A window that keeps the exact frame it is given (AppKit insets ordinary windows).
 final class DesktopWindow: NSWindow {
@@ -142,7 +59,7 @@ final class Wallpaper: NSObject, WKNavigationDelegate {
     window.setFrame(screen.frame, display: true)
     if !visible { window.alphaValue = 0 }
     window.orderFrontRegardless()
-    view.load(URLRequest(url: sceneURL))
+    view.load(URLRequest(url: sceneURL()))
   }
 
   func close() {
@@ -250,19 +167,51 @@ final class Wallpaper: NSObject, WKNavigationDelegate {
     DispatchQueue.main.asyncAfter(deadline: .now() + wait) { [weak self] in
       guard let self else { return }
       self.stableSince = Date()
-      self.view.load(URLRequest(url: sceneURL))
+      self.view.load(URLRequest(url: sceneURL()))
     }
   }
+}
+
+/// Carrying the user's settings and files over from the app's old name, "Green Wall".
+enum Migration {
+  static let oldDomain = "local.green-wall"
+  static let doneKey = "migratedFromGreenWall"
+  static var oldFolder: URL { supportFolder("Green Wall") }
+  static var oldStill: URL { oldFolder.appendingPathComponent("still.jpg") }
+
+  /// Once: copy the pause choice, Motion level and remembered original wallpaper from the
+  /// old preferences, never overwriting what the new app already has.
+  static func importSettings() {
+    let defaults = UserDefaults.standard
+    guard !defaults.bool(forKey: doneKey) else { return }
+    let old = defaults.persistentDomain(forName: oldDomain) ?? [:]
+    let new = defaults.persistentDomain(forName: Bundle.main.bundleIdentifier ?? "local.cefalo-living-wall") ?? [:]
+    let imported = settingsToImport(old: old, new: new)
+    for (key, value) in imported { defaults.set(value, forKey: key) }
+    defaults.set(true, forKey: doneKey)
+    if !imported.isEmpty { log("carried over from Green Wall: \(imported.keys.sorted())") }
+  }
+
+  /// The old support folder and log, once the new still is on the desktop.
+  static func removeOldFiles() {
+    let logs = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0].appendingPathComponent("Logs")
+    for url in [oldFolder, logs.appendingPathComponent("Green Wall.log")] where FileManager.default.fileExists(atPath: url.path) {
+      try? FileManager.default.removeItem(at: url)
+    }
+  }
+}
+
+func supportFolder(_ name: String) -> URL {
+  FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent(name)
 }
 
 /// The still photo behind the live layer, and the user's own picture to restore later.
 enum DesktopPicture {
   static let savedKey = "previousDesktopPictures"
-  static var folder: URL {
-    FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-      .appendingPathComponent("Green Wall")
-  }
+  static var folder: URL { supportFolder("Cefalo Living Wall") }
   static var still: URL { folder.appendingPathComponent("still.jpg") }
+  /// Every still this app has ever shown: never the user's own picture.
+  static var ours: [URL] { [still, Migration.oldStill] }
 
   static func id(_ screen: NSScreen) -> String {
     "\((screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.intValue ?? 0)"
@@ -281,7 +230,7 @@ enum DesktopPicture {
     // process died in between, the next launch would only see our own still.
     let previous = UserDefaults.standard.dictionary(forKey: savedKey) as? [String: String] ?? [:]
     let current = Dictionary(NSScreen.screens.map { (id($0), NSWorkspace.shared.desktopImageURL(for: $0)) }) { a, _ in a }
-    UserDefaults.standard.set(picturesToSave(current: current, saved: previous, still: still), forKey: savedKey)
+    UserDefaults.standard.set(picturesToSave(current: current, saved: previous, ours: ours), forKey: savedKey)
     for screen in NSScreen.screens {
       do {
         try NSWorkspace.shared.setDesktopImageURL(
@@ -291,6 +240,7 @@ enum DesktopPicture {
         log("could not set the desktop picture: \(error.localizedDescription)")
       }
     }
+    Migration.removeOldFiles()
   }
 
   /// Put back the pictures saved by install(). Returns false, keeping the record, if any
@@ -303,8 +253,9 @@ enum DesktopPicture {
       guard let url = targets[id(screen)] else { continue }
       try? NSWorkspace.shared.setDesktopImageURL(url, for: screen, options: [:])
     }
+    let ourPaths = Set(ours.map { $0.standardizedFileURL.path })
     let stuck = NSScreen.screens.filter {
-      NSWorkspace.shared.desktopImageURL(for: $0)?.standardizedFileURL.path == still.standardizedFileURL.path
+      NSWorkspace.shared.desktopImageURL(for: $0).map { ourPaths.contains($0.standardizedFileURL.path) } ?? false
     }
     if !stuck.isEmpty {
       log("could not restore the desktop picture on \(stuck.count) screen(s)")
@@ -332,6 +283,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private let waterItem = NSMenuItem(title: "Water", action: #selector(water), keyEquivalent: "")
   private let pauseItem = NSMenuItem(title: "Pause", action: #selector(togglePause), keyEquivalent: "")
   private var motionItems: [NSMenuItem] = []
+  private let screenSaverItem = NSMenuItem(
+    title: "Screen Saver Settings…", action: #selector(openScreenSaverSettings), keyEquivalent: "")
   /// How fast and how far the leaves move; remembered across restarts.
   private var motion = motionLevel(stored: UserDefaults.standard.object(forKey: "motion") as? Int)
   /// Remembered across restarts. With no choice stored yet, Reduce Motion starts it paused.
@@ -374,6 +327,35 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     _ = NotificationCenter.default.addObserver(forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main) {
       [weak self] _ in self?.applyRate()
     }
+    // Once the wall is up, offer (once) to use the screen saver too.
+    DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in self?.offerScreenSaver() }
+  }
+
+  private func offerScreenSaver() {
+    let key = "screenSaverPromptShown"
+    let saver = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0]
+      .appendingPathComponent("Screen Savers/Cefalo Living Wall.saver")
+    guard shouldOfferScreenSaver(
+      alreadyShown: UserDefaults.standard.bool(forKey: key), saverInstalled: FileManager.default.fileExists(atPath: saver.path))
+    else { return }
+    UserDefaults.standard.set(true, forKey: key)
+    let alert = NSAlert()
+    alert.messageText = "Use Cefalo Living Wall as your screen saver?"
+    alert.informativeText = "It can play the living wall while your Mac is idle. Choose Cefalo Living Wall in Screen Saver settings."
+    alert.addButton(withTitle: "Open Screen Saver Settings")
+    alert.addButton(withTitle: "Not Now")
+    NSApp.activate(ignoringOtherApps: true)
+    if alert.runModal() == .alertFirstButtonReturn { openScreenSaverSettings() }
+  }
+
+  /// System Settings on the Screen Saver page (Apple's supported link), or System Settings itself.
+  @objc private func openScreenSaverSettings() {
+    if let page = URL(string: "x-apple.systempreferences:com.apple.ScreenSaver-Settings.extension"),
+      NSWorkspace.shared.open(page)
+    {
+      return
+    }
+    NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app"))
   }
 
   // Showing a full-screen window is itself a screen-parameter change, so compare first.
@@ -472,11 +454,11 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
   private func addMenu() {
     let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-    let symbol = NSImage(systemSymbolName: "leaf.fill", accessibilityDescription: "Green Wall")
+    let symbol = NSImage(systemSymbolName: "leaf.fill", accessibilityDescription: "Cefalo Living Wall")
     symbol?.isTemplate = true
     item.button?.image = symbol
-    if symbol == nil { item.button?.title = "Green Wall" }
-    item.button?.toolTip = "Green Wall"
+    if symbol == nil { item.button?.title = "Cefalo Living Wall" }
+    item.button?.toolTip = "Cefalo Living Wall"
     let menu = NSMenu()
     menu.delegate = self
     menu.autoenablesItems = false
@@ -499,6 +481,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let motionMenu = NSMenuItem(title: "Motion", action: nil, keyEquivalent: "")
     motionMenu.submenu = levels
     menu.addItem(motionMenu)
+    screenSaverItem.target = self
+    menu.addItem(screenSaverItem)
     menu.addItem(.separator())
     let quit = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
     quit.target = self
@@ -533,7 +517,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
   @objc private func quit() { NSApp.terminate(nil) }
 }
 
-/// `Green Wall --check`: load the scene in a hidden web view, frozen at 10 s, and exit 0
+/// `Cefalo Living Wall --check`: load the scene in a hidden web view, frozen at 10 s, and exit 0
 /// if it reports that it drew a real frame. Used by the installer and mac/tests/run.sh.
 final class SceneCheck: NSObject, NSApplicationDelegate {
   private let messages = PageMessages()
@@ -560,7 +544,7 @@ final class SceneCheck: NSObject, NSApplicationDelegate {
         self.checkBridge(root: root)
       }
     }
-    view.load(URLRequest(url: URL(string: "\(scheme)://local/index.html?t=10&smoke")!))
+    view.load(URLRequest(url: sceneURL("t=10&smoke")))
     DispatchQueue.main.asyncAfter(deadline: .now() + 30) { Self.finish(false, "timed out waiting for the scene") }
   }
 
@@ -603,15 +587,81 @@ final class SceneCheck: NSObject, NSApplicationDelegate {
   }
 }
 
+/// `Cefalo Living Wall --check-saver <path>`: load the built screen saver into this process,
+/// show a full-screen view and a thumbnail preview in hidden windows, and exit 0 only if both
+/// reach `ready` and run at 30 and 15 fps with the saver's Motion option. Used by the
+/// installer and mac/tests/run.sh.
+final class SaverCheck: NSObject, NSApplicationDelegate {
+  private var windows: [NSWindow] = []
+  private var pending = 2
+
+  func applicationDidFinishLaunching(_ note: Notification) {
+    let arguments = CommandLine.arguments
+    guard let index = arguments.firstIndex(of: "--check-saver"), index + 1 < arguments.count,
+      let bundle = Bundle(path: arguments[index + 1]), bundle.load(),
+      let saverClass = bundle.principalClass as? ScreenSaverView.Type
+    else { Self.finish(false, "could not load the screen saver bundle") }
+    let motion = motionLevel(
+      stored: ScreenSaverDefaults(forModuleWithName: "local.cefalo-living-wall.saver")?.object(forKey: "motion") as? Int)
+    for isPreview in [false, true] {
+      let frame = NSRect(x: 0, y: 0, width: isPreview ? 320 : 1200, height: isPreview ? 200 : 750)
+      guard let view = saverClass.init(frame: frame, isPreview: isPreview) else { Self.finish(false, "the saver view did not initialise") }
+      let window = NSWindow(contentRect: frame, styleMask: .borderless, backing: .buffered, defer: false)
+      window.alphaValue = 0
+      window.ignoresMouseEvents = true
+      window.contentView = view
+      window.orderFrontRegardless()
+      view.startAnimation()
+      windows.append(window)
+      let fps = isPreview ? 15 : 30
+      poll(view, name: isPreview ? "preview" : "full screen", tries: 60) {
+        $0.contains("\"running\":true") && $0.contains("\"maxFps\":\(fps)") && $0.contains("\"motion\":\(motion)")
+          && Self.drawn($0) > 10   // really animating, not just ready
+      }
+    }
+  }
+
+  private func poll(_ view: NSView, name: String, tries: Int, until test: @escaping (String) -> Bool) {
+    guard tries > 0 else { Self.finish(false, "the \(name) saver never ran as expected") }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+      guard let web = view.subviews.compactMap({ $0 as? WKWebView }).first else {
+        Self.finish(false, "the \(name) saver shows no scene")
+      }
+      web.evaluateJavaScript("typeof wallState === 'function' ? JSON.stringify(wallState()) : ''") { value, _ in
+        guard let state = value as? String, test(state) else {
+          return self.poll(view, name: name, tries: tries - 1, until: test)
+        }
+        print("Saver \(name) runs: \(state.prefix(90))…")
+        self.pending -= 1
+        if self.pending == 0 { Self.finish(true, "the screen saver runs full screen and as a preview") }
+      }
+    }
+  }
+
+  static func drawn(_ state: String) -> Int {
+    guard let range = state.range(of: #""drawn":(\d+)"#, options: .regularExpression) else { return 0 }
+    return Int(state[range].dropFirst(8)) ?? 0
+  }
+
+  static func finish(_ ok: Bool, _ detail: String) -> Never {
+    print(ok ? "Saver check passed: \(detail)" : "Saver check FAILED: \(detail)")
+    exit(ok ? 0 : 1)
+  }
+}
+
 @main
-enum GreenWall {
+enum LivingWall {
   static func main() {
     let app = NSApplication.shared
     let arguments = CommandLine.arguments
+    // Before anything reads preferences: the Controller's paused/motion start from them.
+    let checking = arguments.contains("--check") || arguments.contains("--check-saver")
+    if !checking { Migration.importSettings() }
     if arguments.contains("--restore-desktop-picture") {
       exit(DesktopPicture.restore() ? 0 : 1)
     }
-    let delegate: NSApplicationDelegate = arguments.contains("--check") ? SceneCheck() : Controller()
+    let delegate: NSApplicationDelegate =
+      arguments.contains("--check-saver") ? SaverCheck() : arguments.contains("--check") ? SceneCheck() : Controller()
     app.setActivationPolicy(.accessory)
     app.delegate = delegate
     withExtendedLifetime(delegate) { app.run() }

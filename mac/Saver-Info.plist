@@ -7,24 +7,20 @@
 	<key>CFBundleExecutable</key>
 	<string>Cefalo Living Wall</string>
 	<key>CFBundleIdentifier</key>
-	<string>local.cefalo-living-wall</string>
+	<string>local.cefalo-living-wall.saver</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>Cefalo Living Wall</string>
 	<key>CFBundlePackageType</key>
-	<string>APPL</string>
+	<string>BNDL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>13.0</string>
-	<key>LSUIElement</key>
-	<true/>
-	<key>NSHighResolutionCapable</key>
-	<true/>
-	<key>NSSupportsAutomaticTermination</key>
-	<false/>
+	<key>NSPrincipalClass</key>
+	<string>LivingWallSaverView</string>
 </dict>
 </plist>
