@@ -99,7 +99,7 @@ macOS creates one `LivingWallSaverView` per screen, plus one per System Settings
 3. never sends a cursor or Water. The scene's own mouse and keyboard handlers stay off because a host message
    handler is present.
 
-### 5.3 Lifecycle
+### 5.3 Lifecycle (superseded on macOS 26 — see §11)
 
 A pure function `saverActions(for event: SaverEvent, isPreview: Bool, inHost: Bool) -> [SaverAction]` decides; the view
 performs the actions.
@@ -193,3 +193,19 @@ performs the actions.
 | The Screen Saver settings URL changes | Fall back to opening System Settings |
 | Migration imports stale settings | Only three known keys, only when absent, once |
 | Two copies of the scene (~4 MB each) drift apart | `build.sh` copies `scene/` into both at every build; one source folder |
+
+## 11. As built on macOS 26 (acceptance, 2026-09-24)
+
+Acceptance on macOS 26.5 showed that the lifecycle in §5.3 froze or wasted power. Evidence (saver
+logs, loginwindow logs) and the user's choices led to:
+
+| Finding | Change |
+|---|---|
+| macOS keeps the selected saver **pre-warmed** in a `legacyScreenSaver (Wallpaper)` host, calls `startAnimation` on it and restarts the host if it exits; that invisible copy drew at 30 fps | — |
+| `willstop` also arrives just after a saver starts, at the host showing it: exiting (and later pausing) on it **froze the saver on screen** | Exit-on-`willstop` removed; `willstop` changes nothing |
+| AppKit visibility, occlusion, the window server's on-screen flag and the window level do **not** reliably tell which copy is shown (the level gate froze a run) | Not used |
+| `com.apple.screensaver.didstart` / `didstop` arrive as clean pairs around real runs | **Every full-screen copy draws exactly between them**, tracked once per host process (`SaverSession`, `saverShouldRun`); thumbnails always draw; outside `legacyScreenSaver` (e.g. `--check-saver`) always draws — user's choice |
+| The wallpaper kept rendering under a running saver (review finding) | The app rests while the screen saver runs (`PowerState.saverRunning`, status *Stopped — screen saver*) |
+| Previews paused on `willstop` would stay frozen (review finding) | Previews are never paused |
+| On lock, macOS started and stopped the saver every ~30 s with its window not visible, and the lock screen showed a still | The lock screen is **not** live on macOS 26 (documented in the README) |
+| Each display keeps its own screen-saver choice | README: choose it per display |

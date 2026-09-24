@@ -1,7 +1,8 @@
 // Cefalo Living Wall as a screen saver: the wallpaper's scene, one view per display and
 // per System Settings thumbnail. macOS 26 hosts third-party savers in legacyScreenSaver,
-// which never calls stopAnimation and never tears finished savers down; what to do about
-// that is decided by saverActions (HostLogic.swift).
+// keeps pre-warmed copies of the selected one there, and gives no reliable signal for which
+// copy is on screen; so every copy draws exactly while the system reports a screen-saver
+// session (SaverSession, saverShouldRun in HostLogic.swift).
 
 import ScreenSaver
 import WebKit
@@ -24,6 +25,28 @@ enum SaverSettings {
   }
 }
 
+/// The system's screen-saver session, shared by every view in this host process: a view
+/// created just after "did start" (macOS 26 sometimes shows exactly that one) still knows.
+enum SaverSession {
+  private(set) static var running = false
+  static let changed = Notification.Name("LivingWallSaverSessionChanged")
+  private static var observing = false
+
+  static func observe() {
+    guard !observing else { return }
+    observing = true
+    for name in ["com.apple.screensaver.didstart", "com.apple.screensaver.didstop", "com.apple.screensaver.willstop"] {
+      _ = DistributedNotificationCenter.default().addObserver(forName: .init(name), object: nil, queue: .main) { _ in
+        let next = screenSaverSession(after: name, running: running)
+        slog("\(name): session \(next ? "running" : "stopped")")
+        guard next != running else { return }
+        running = next
+        NotificationCenter.default.post(name: changed, object: nil)
+      }
+    }
+  }
+}
+
 @objc(LivingWallSaverView)
 final class LivingWallSaverView: ScreenSaverView {
   /// Every live view in this process, so Options can update the running preview.
@@ -33,9 +56,10 @@ final class LivingWallSaverView: ScreenSaverView {
   private var ready = false
   private var fallback = false
   private var readyTimer: Timer?
+  private var lastRun: Bool?
+  private var inHost: Bool { ProcessInfo.processInfo.processName == "legacyScreenSaver" }
   private var sheet: NSWindow?
   private var motionPopup: NSPopUpButton?
-  private var inHost: Bool { ProcessInfo.processInfo.processName == "legacyScreenSaver" }
   private var resources: URL { Bundle(for: LivingWallSaverView.self).resourceURL! }
 
   override init?(frame: NSRect, isPreview: Bool) {
@@ -48,13 +72,13 @@ final class LivingWallSaverView: ScreenSaverView {
     setUp()
   }
 
-  deinit { DistributedNotificationCenter.default().removeObserver(self) }
+  deinit { NotificationCenter.default.removeObserver(self) }
 
   private func setUp() {
     animationTimeInterval = 1   // the page animates itself; animateOneFrame stays empty
     Self.live.add(self)
-    DistributedNotificationCenter.default().addObserver(
-      self, selector: #selector(willStop), name: .init("com.apple.screensaver.willstop"), object: nil)
+    SaverSession.observe()
+    NotificationCenter.default.addObserver(self, selector: #selector(sessionChanged), name: SaverSession.changed, object: nil)
     slog("started preview \(isPreview) frame \(frame) host \(ProcessInfo.processInfo.processName)")
     load()
   }
@@ -77,7 +101,9 @@ final class LivingWallSaverView: ScreenSaverView {
     case "ready":
       ready = true
       readyTimer?.invalidate()
-      send("wallSetMaxFps(\(isPreview ? 15 : 30)); wallSetPaused(false); wallSetMotion(\(SaverSettings.motion))")
+      slog("ready preview \(isPreview) \(visibility)")
+      send("wallSetMaxFps(\(isPreview ? 15 : 30)); wallSetMotion(\(SaverSettings.motion))")
+      refresh()
     case "failed":
       slog("the scene failed: \(message["reason"] ?? "unknown")")
       showStill()
@@ -91,37 +117,40 @@ final class LivingWallSaverView: ScreenSaverView {
     web?.evaluateJavaScript(script)
   }
 
-  private func perform(_ actions: [SaverAction]) {
-    for action in actions {
-      switch action {
-      case .pause: send("wallSetPaused(true)")
-      case .resume: send("wallSetPaused(false)")
-      case .tearDown: tearDown()
-      case .exitProcess:
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-          slog("leaving the screen-saver host so nothing keeps running")
-          exit(0)
-        }
-      }
-    }
+  /// Draw only while it is worth it (saverShouldRun); sent to the page on change.
+  private func refresh() {
+    guard ready else { return }
+    let run = saverShouldRun(isPreview: isPreview, sessionRunning: SaverSession.running, inHost: inHost)
+    guard run != lastRun else { return }
+    lastRun = run
+    send("wallSetPaused(\(!run))")
+    slog("\(run ? "running" : "paused") preview \(isPreview) \(visibility)")
   }
 
-  @objc private func willStop() { perform(saverActions(for: .willStop, isPreview: isPreview, inHost: inHost)) }
+  @objc private func sessionChanged() { refresh() }
 
+  // macOS 26 calls these for pre-warmed copies too, so they only inform the log.
   override func startAnimation() {
     super.startAnimation()
-    perform(saverActions(for: .start, isPreview: isPreview, inHost: inHost))
+    slog("startAnimation preview \(isPreview) \(visibility)")
+    refresh()
   }
 
   override func stopAnimation() {
     super.stopAnimation()
-    perform(saverActions(for: .stop, isPreview: isPreview, inHost: inHost))
+    slog("stopAnimation preview \(isPreview) \(visibility)")
+  }
+
+  private var visibility: String {
+    guard let window else { return "no window" }
+    return "level \(window.level.rawValue) size \(bounds.size)"
   }
 
   override func viewDidMoveToWindow() {
     super.viewDidMoveToWindow()
+    slog("moved to window preview \(isPreview) \(visibility)")
     if window == nil {
-      perform(saverActions(for: .removedFromWindow, isPreview: isPreview, inHost: inHost))
+      tearDown()   // e.g. System Settings replaced its thumbnail: don't let copies pile up
     } else if web == nil && !fallback {
       load()   // shown again after being removed
     }
@@ -129,6 +158,7 @@ final class LivingWallSaverView: ScreenSaverView {
 
   private func tearDown() {
     readyTimer?.invalidate()
+    lastRun = nil
     guard let view = web else { return }
     view.stopLoading()
     view.configuration.userContentController.removeScriptMessageHandler(forName: "wall")

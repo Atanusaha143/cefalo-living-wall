@@ -44,10 +44,14 @@ cursor comes close. Icons, clicks and dragging on the desktop work as usual.
 ## Screen saver
 
 The first time the app starts it offers to open Screen Saver settings: choose
-**Cefalo Living Wall** there (System Settings → Screen Saver, under *Other*). It plays the
-living wall while your Mac is idle, on every display, and keeps playing after the Mac
-locks until you touch it. **Options…** next to it sets its own Motion level (Energetic
-by default). Nothing keeps running after it stops.
+**Cefalo Living Wall** there (System Settings → Screen Saver, under *Other*). With more
+than one display, macOS keeps a choice per display: pick the display at the top of that
+page and choose it for each one. It plays the living wall while the screen saver runs,
+and the wallpaper underneath rests meanwhile. **Options…** next to it sets its own Motion
+level (Energetic by default). Between runs nothing draws.
+
+On macOS 26 the lock screen itself shows a still picture rather than the live screen
+saver: macOS only uses still frames of third-party screen savers there.
 
 ## Uninstall
 
@@ -73,14 +77,15 @@ and makes no network requests.
 **Multiple displays?** Each display gets its own wall; Water mists all of them.
 
 **Why is it not moving?** Open the menu: the first line says why (paused, covered by
-windows, screen locked). If Reduce Motion is on, it starts paused until
-you choose Resume.
+windows, screen locked, screen saver running). If Reduce Motion is on, it starts paused
+until you choose Resume.
 
 **Where is the leaf icon?** On a MacBook with a notch, macOS hides menu-bar icons that do
 not fit beside it. Quit or ⌘-drag away another icon to make room.
 
-**Can the lock screen itself move?** No app can draw on the macOS lock screen; it shows
-your desktop picture. Use the screen saver: it keeps playing after the Mac locks.
+**Can the lock screen itself move?** No. No app can draw on the macOS lock screen, and
+macOS 26 shows only still frames of third-party screen savers there. The screen saver
+plays the living wall whenever it runs.
 
 **Something looks wrong?** `pkill -USR1 -f "Cefalo Living Wall.app/Contents/MacOS/Cefalo Living Wall"`
 writes what the app and each display's scene are doing to `~/Library/Logs/Cefalo Living Wall.log`.

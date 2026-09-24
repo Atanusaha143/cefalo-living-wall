@@ -8,7 +8,9 @@ struct PowerState: Equatable {
   var locked = false
   var screensAsleep = false
   var sessionInactive = false
-  var still: Bool { locked || screensAsleep || sessionInactive }
+  /// The screen saver is playing over the wall: rendering underneath would only cost power.
+  var saverRunning = false
+  var still: Bool { locked || screensAsleep || sessionInactive || saverRunning }
 }
 
 /// The menu's first line: why the wall is doing what it does.
@@ -16,6 +18,7 @@ func statusLine(failed: Bool, power: PowerState, paused: Bool, rate: Int) -> Str
   failed ? "Scene failed to load"
     : paused ? "Paused"
     : power.locked ? "Stopped — screen locked"
+    : power.saverRunning ? "Stopped — screen saver"
     : power.screensAsleep || power.sessionInactive ? "Stopped — screen asleep"
     : rate == 0 ? "Stopped — covered by windows"
     : "Running · \(rate) fps"
@@ -71,18 +74,20 @@ func shouldOfferScreenSaver(alreadyShown: Bool, saverInstalled: Bool) -> Bool {
   !alreadyShown && saverInstalled
 }
 
-/// What happens to the screen saver's view, and why (see the spec's lifecycle table).
-enum SaverEvent { case willStop, removedFromWindow, start, stop }
-enum SaverAction: Equatable { case pause, resume, tearDown, exitProcess }
+/// Whether a screen-saver view should draw. macOS 26 keeps pre-warmed copies of the selected
+/// saver and gives no reliable "this copy is on screen" signal, so every copy draws exactly
+/// while the system reports a screen-saver session. Thumbnails in System Settings always draw,
+/// and so does a saver shown outside macOS's legacyScreenSaver host (e.g. `--check-saver`).
+func saverShouldRun(isPreview: Bool, sessionRunning: Bool, inHost: Bool) -> Bool {
+  isPreview || !inHost || sessionRunning
+}
 
-/// `inHost`: running inside macOS's legacyScreenSaver, the only process that may be exited.
-/// It never tears finished savers down, so a real run ends by leaving the process; previews
-/// live in System Settings' host and are only paused.
-func saverActions(for event: SaverEvent, isPreview: Bool, inHost: Bool) -> [SaverAction] {
-  switch event {
-  case .willStop: return !isPreview && inHost ? [.pause, .exitProcess] : [.pause]
-  case .removedFromWindow: return [.tearDown]
-  case .start: return [.resume]
-  case .stop: return [.pause]
+/// The screen-saver session after a system notification. Only "did start" and "did stop"
+/// count: macOS 26 also sends "will stop" as a saver starts.
+func screenSaverSession(after notification: String, running: Bool) -> Bool {
+  switch notification {
+  case "com.apple.screensaver.didstart": return true
+  case "com.apple.screensaver.didstop": return false
+  default: return running
   }
 }

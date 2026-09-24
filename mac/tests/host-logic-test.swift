@@ -65,13 +65,20 @@ enum HostLogicTest {
     check(!shouldOfferScreenSaver(alreadyShown: true, saverInstalled: true), "never twice")
     check(!shouldOfferScreenSaver(alreadyShown: false, saverInstalled: false), "never without the saver")
 
-    check(saverActions(for: .willStop, isPreview: false, inHost: true) == [.pause, .exitProcess], "a finished screen saver leaves nothing running")
-    check(saverActions(for: .willStop, isPreview: true, inHost: true) == [.pause], "a preview in System Settings is only paused")
-    check(saverActions(for: .willStop, isPreview: false, inHost: false) == [.pause], "outside the screen-saver host (a check) nothing exits")
-    check(saverActions(for: .removedFromWindow, isPreview: true, inHost: true) == [.tearDown], "a removed preview is torn down")
-    check(saverActions(for: .removedFromWindow, isPreview: false, inHost: true) == [.tearDown], "so is a removed full-screen view")
-    check(saverActions(for: .start, isPreview: false, inHost: true) == [.resume] && saverActions(for: .stop, isPreview: false, inHost: true) == [.pause],
-      "start and stop resume and pause")
+    // macOS 26 pre-warms copies of the saver and gives no reliable "on screen" signal, so every
+    // copy draws exactly while the system reports a screen-saver session.
+    check(saverShouldRun(isPreview: false, sessionRunning: true, inHost: true), "during a screen-saver session every copy draws")
+    check(!saverShouldRun(isPreview: false, sessionRunning: false, inHost: true), "between sessions the pre-warmed copies stay still")
+    check(saverShouldRun(isPreview: true, sessionRunning: false, inHost: true), "the System Settings thumbnail always draws")
+    check(saverShouldRun(isPreview: false, sessionRunning: false, inHost: false), "outside the screen-saver host (a check) it draws")
+    check(screenSaverSession(after: "com.apple.screensaver.didstart", running: false), "did start begins a session")
+    check(!screenSaverSession(after: "com.apple.screensaver.didstop", running: true), "did stop ends it")
+    check(screenSaverSession(after: "com.apple.screensaver.willstop", running: true), "will stop changes nothing (macOS 26 also sends it at start)")
+
+    var covered = PowerState()
+    covered.saverRunning = true
+    check(covered.still, "the wallpaper rests while the screen saver plays over it")
+    check(statusLine(failed: false, power: covered, paused: false, rate: 30) == "Stopped — screen saver", "and says so")
     exit(failures == 0 ? 0 : 1)
   }
 }

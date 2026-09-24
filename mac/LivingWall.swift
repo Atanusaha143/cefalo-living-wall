@@ -319,6 +319,14 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self?.applyRate()
       }
     }
+    // While the screen saver plays over the wall, the wall rests.
+    for (name, running) in [("com.apple.screensaver.didstart", true), ("com.apple.screensaver.didstop", false)] {
+      _ = DistributedNotificationCenter.default().addObserver(forName: .init(name), object: nil, queue: .main) { [weak self] _ in
+        log("\(name)")
+        self?.power.saverRunning = running
+        self?.applyRate()
+      }
+    }
     // `kill -USR1 <pid>` logs what the host and each page are doing.
     signal(SIGUSR1, SIG_IGN)
     diagnostics = DispatchSource.makeSignalSource(signal: SIGUSR1, queue: .main)
