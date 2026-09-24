@@ -78,6 +78,7 @@ before ready are queued).
 | `wallWater()` | Start the mist effect |
 | `wallSetPaused(paused)` | User pause (menu). `true` halts rendering |
 | `wallSetMaxFps(n)` | Power cap from the host. `n = 0` halts rendering |
+| `wallSetMotion(level)` | Motion level 1 Calm … 5 Wild (§10); out-of-range values clamp, unreadable ones give the default |
 
 The scene renders if and only if `!paused && maxFps > 0` and the page is visible. Halting means no
 `requestAnimationFrame` is scheduled at all.
@@ -90,7 +91,7 @@ warnings forwarded for debugging).
 
 `npm start` serves the repo at `http://127.0.0.1:8080/scene/`. In a browser the page drives the same
 bridge itself: pointer events → `wallSetPointer`/`wallPointerOut`, **click → `wallWater()`**,
-**Space → pause/resume**. Query parameters, used for development and tests:
+**Space → pause/resume**, **keys 1–5 → `wallSetMotion`**. `?motion=<1–5>` sets the starting level. Query parameters, used for development and tests:
 `?t=<seconds>` freeze all animation at that time · `?seed=<n>` layout seed · `?debug` overlay with drawn fps,
 CPU ms and a GPU-synced frame ms · `?t=<s>&water=<s>` show the mist (water at the second time) ·
 `?smoke` print a one-line report for the smoke tests.
@@ -267,6 +268,8 @@ Status item with SF Symbol `leaf.fill`:
   (with more than one display, the line shows the highest current rate).
 - **Water** — calls `wallWater()` on every screen; disabled while paused or halted everywhere.
 - **Pause / Resume** — `wallSetPaused` on every screen; persisted in `UserDefaults`.
+- **Motion ▸ Calm / Gentle / Lively / Energetic / Wild** — `wallSetMotion` on every screen; the
+  current level is checked; persisted in `UserDefaults` (`motion`); Energetic until chosen (§10).
 - **Quit**.
 
 ### 5.5 Preferences and Reduce Motion
@@ -433,3 +436,4 @@ Measured while planning: a full frame at the XDR display's 3024×1964 takes ≈3
 | **Ignore Low Power Mode** (the user's Mac runs in it) | The wall keeps its normal rate and cursor in Low Power Mode; status line no longer has a Low Power entry; Pause stays enabled |
 | **Much livelier motion** | Sway 6.6–14.4° (was 2.2–4.8°); gusts every 7–14 s (was 15–40 s), up to ~30° (was 13°); cursor reach 140 units (was 90), bend up to 55° (was 38°), clamp 70°, stronger flick; photo shimmer 3–7 units (was 2–5) |
 | Host↔page handshake | The host treats the page as reachable only after its `ready` message (WebKit reports navigation finished before the scene's module runs); `--check` now also drives a hidden wall end to end |
+| **Adjustable Motion** (user asked for motion "according to person's need") | Menu levels Calm (speed 0.7×, strength 0.35×), Gentle (0.85×, 0.6×), Lively (1×, 1× — the "much livelier" values above), Energetic (1.3×, 1.3×, **default**), Wild (1.6×, 1.6×). Speed runs the wind on its own clock (sway rhythm and gust frequency); strength scales leaf sway and gusts, the cursor's bend and flick, and the photo shimmer (capped at 1.3× so the photo never smears). Butterflies keep their pace. Code: `scene/src/motion.js` |

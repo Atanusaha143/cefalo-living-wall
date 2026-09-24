@@ -42,3 +42,13 @@ func picturesToRestore(screens: [String], saved: [String: String], exists: (URL)
   for id in screens { if let url = usable[id] ?? fallback { out[id] = url } }
   return out
 }
+
+/// The Motion menu's levels, in the same order as scene/src/motion.js.
+let motionNames = ["Calm", "Gentle", "Lively", "Energetic", "Wild"]
+
+/// The Motion level to use: the stored choice clamped to 1…5, or Energetic (4) until the
+/// user picks one.
+func motionLevel(stored: Int?) -> Int {
+  guard let stored else { return 4 }
+  return min(motionNames.count, max(1, stored))
+}

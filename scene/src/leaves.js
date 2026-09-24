@@ -35,6 +35,7 @@ const VERTEX = /* glsl */ `
   attribute vec3 iColour;
   attribute vec4 iWind;                  // sway amplitude (deg), sway phase (s), gust amplitude (deg), gust delay (s)
   uniform vec2 uOffset;                  // shadow offset, world units
+  uniform float uStrength;               // the Motion setting's strength
   varying vec3 vColour, vNormal;
   varying vec2 vWall;
   varying float vSide, vDeep;
@@ -47,7 +48,7 @@ const VERTEX = /* glsl */ `
     float side = aBlade.x, s = aBlade.y;
     vec2 local = vec2(side * halfWidth(iSize.z, s) * iSize.y, ${PETIOLE.toFixed(1)} + s * ${BLADE.toFixed(1)}) * iSize.x;
     vec3 n = normalize(vec3(-side * 0.45 * iSize.y, -0.3 * (s - 0.5), 1.0));   // midrib fold + curl
-    float deg = iAngle + iWind.x * swayAt(iBase.x, iWind.y) + iWind.z * gustAt(iBase.x, iWind.w) + iBend;
+    float deg = iAngle + uStrength * (iWind.x * swayAt(iBase.x, iWind.y) + iWind.z * gustAt(iBase.x, iWind.w)) + iBend;
     float c = cos(radians(deg)), k = sin(radians(deg));
     // Clockwise on screen, world y up: local (0, 1) -> (sin, cos).
     vec2 r = vec2(local.x * c + local.y * k, -local.x * k + local.y * c);
@@ -136,6 +137,7 @@ export function createLeaves(leaves, pixels, random, springs) {
     uTime: { value: 0 }, uGustStart: { value: -1e4 }, uGustStrength: { value: 0 },
     uLights: { value: LIGHTS.map(([x, y]) => new THREE.Vector3(x, -y, 60)) },
     uWet: { value: 0 }, uShadow: { value: 0 }, uOffset: { value: new THREE.Vector2(0, 0) },
+    uStrength: { value: 1 },
   };
   const make = (shadow, order) => {
     const material = new THREE.ShaderMaterial({
@@ -156,12 +158,13 @@ export function createLeaves(leaves, pixels, random, springs) {
   const group = new THREE.Group();
   group.add(make(true, 1), stems, make(false, 3));
 
-  let time = 0, gust = { start: -1e4, strength: 0 };
+  let time = 0, gust = { start: -1e4, strength: 0 }, strength = 1;
   return {
     group,
-    /** Wind time and gust for this frame, plus how wet the leaves look (0..1). */
-    update(t, currentGust, wet = 0) {
-      time = t; gust = currentGust;
+    /** Wind time and gust for this frame, how wet the leaves look (0..1), and the Motion strength. */
+    update(t, currentGust, wet = 0, motionStrength = 1) {
+      time = t; gust = currentGust; strength = motionStrength;
+      uniforms.uStrength.value = motionStrength;
       const wrapped = shaderTime(t, gust);
       uniforms.uTime.value = wrapped.time;
       uniforms.uGustStart.value = wrapped.gustStart;
@@ -181,8 +184,8 @@ export function createLeaves(leaves, pixels, random, springs) {
     /** Where leaf i's midpoint is right now (wall units), matching the shader. */
     midpoint(i) {
       const l = leaves[i];
-      const deg = l.angle + l.swayAmp * swayAt(l.x, time, l.swayPhase)
-        + l.gustAmp * gustAt(l.x, time, gust.start, gust.strength, l.gustDelay) + springs.angle[i];
+      const deg = l.angle + strength * (l.swayAmp * swayAt(l.x, time, l.swayPhase)
+        + l.gustAmp * gustAt(l.x, time, gust.start, gust.strength, l.gustDelay)) + springs.angle[i];
       const len = (PETIOLE + 0.5 * BLADE) * l.scale, a = (deg * Math.PI) / 180;
       return { x: l.x + Math.sin(a) * len, y: l.y - Math.cos(a) * len };
     },

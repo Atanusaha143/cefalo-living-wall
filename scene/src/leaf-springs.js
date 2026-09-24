@@ -11,7 +11,7 @@ export function createSprings(leaves, options = {}) {
   const angle = new Float32Array(n), vel = new Float32Array(n), hold = new Float32Array(n);
   const active = new Set(), dirty = new Set();
   const pointer = { x: 0, y: 0, vx: 0, vy: 0, inside: false, t: null };
-  let carry = 0;
+  let carry = 0, strength = 1;   // the Motion setting's strength scales bend and flick
 
   // Spatial grid of leaf midpoints; cells as big as the reach, so 3x3 cells cover it.
   const grid = new Map();
@@ -38,8 +38,8 @@ export function createSprings(leaves, options = {}) {
         if (d2 < P.reach * P.reach) {
           const f = 1 - Math.sqrt(d2) / P.reach;
           const side = (pointer.x - l.x) * l.ux + (pointer.y - l.y) * l.uy;
-          target += (side > 0 ? -1 : 1) * P.maxBend * f * f;
-          vel[i] += ((pointer.vx * l.ux + pointer.vy * l.uy) / 60) * P.flick * f;
+          target += (side > 0 ? -1 : 1) * P.maxBend * strength * f * f;
+          vel[i] += ((pointer.vx * l.ux + pointer.vy * l.uy) / 60) * P.flick * strength * f;
         }
       }
       vel[i] = (vel[i] + (target - angle[i]) * P.k) * P.damping;
@@ -66,6 +66,8 @@ export function createSprings(leaves, options = {}) {
       Object.assign(pointer, { x, y, t, inside: true });
     },
     pointerOut() { Object.assign(pointer, { inside: false, vx: 0, vy: 0, t: null }); },
+    /** Scale the cursor's bend and flick (the Motion setting's strength). */
+    setStrength(s) { strength = s; },
     /** Add angular velocity (degrees per substep) to one leaf, e.g. the mist's lift. */
     impulse(i, degrees) { vel[i] += degrees; active.add(i); },
     /** Keep a leaf bent by `degrees` (e.g. under a resting butterfly); 0 releases it. */

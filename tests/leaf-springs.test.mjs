@@ -45,6 +45,13 @@ test('a cursor right beside a leaf bends it hard (lively, user choice)', () => {
   assert.ok(s.angle[0] < -40, `angle ${s.angle[0]}`);
 });
 
+test('a calmer motion setting bends leaves less', () => {
+  const calm = createSprings(upright()), wild = createSprings(upright());
+  calm.setStrength(0.35); wild.setStrength(1.6);
+  for (const s of [calm, wild]) { s.setPointer(110, 76, 0); run(s, 1); }
+  assert.ok(Math.abs(calm.angle[0]) < 25 && Math.abs(wild.angle[0]) > 50, `calm ${calm.angle[0]} wild ${wild.angle[0]}`);
+});
+
 test('the cursor reaches leaves 120 units away', () => {
   const s = createSprings(upright());
   s.setPointer(220, 76, 0);

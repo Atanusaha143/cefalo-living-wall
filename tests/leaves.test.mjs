@@ -36,6 +36,22 @@ test('a leaf midpoint sways near where it grows', () => {
   }
 });
 
+test('the motion strength scales how far leaves sway, on the GPU and in midpoint()', () => {
+  const { data, leaves } = setup();
+  const swing = (strength) => {
+    let max = 0;
+    for (let t = 0; t < 10; t += 0.25) {
+      leaves.update(t, noGust, 0, strength);
+      const m = leaves.midpoint(5);
+      max = Math.max(max, Math.hypot(m.x - data[5].midX, m.y - data[5].midY));
+    }
+    return max;
+  };
+  const calm = swing(0.35), wild = swing(1.6);
+  assert.ok(wild > calm * 3, `calm ${calm} wild ${wild}`);
+  assert.equal(leaves.group.children[2].material.uniforms.uStrength.value, 1.6);
+});
+
 test('bends reach the GPU buffer, uploading only the changed span', () => {
   const { springs, leaves } = setup();
   springs.setHold(42, 20);

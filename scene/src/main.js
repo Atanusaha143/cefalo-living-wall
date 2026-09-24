@@ -13,6 +13,7 @@ import { createLights } from './lights.js';
 import { createLogoGlow } from './logo-glow.js';
 import { createButterflies } from './butterflies.js';
 import { createMist } from './mist.js';
+import { createMotionClock, DEFAULT_MOTION } from './motion.js';
 
 const params = new URLSearchParams(location.search);
 const SEED = Number(params.get('seed') ?? 7);
@@ -27,13 +28,14 @@ const LIFT = 1.2;       // degrees per substep the mist lifts every leaf, once
 // The bridge. The host (or browser input) may call these before the scene is ready;
 // until then the latest values wait in `pending`.
 let live = null;
-const pending = { pointer: null, paused: false, maxFps: 30, water: false };
+const pending = { pointer: null, paused: false, maxFps: 30, water: false, motion: params.get('motion') ?? DEFAULT_MOTION };
 Object.assign(window, {
   wallSetPointer: (x, y) => (live ? live.pointer(x, y) : (pending.pointer = [x, y])),
   wallPointerOut: () => (live ? live.pointerOut() : (pending.pointer = null)),
   wallWater: () => (live ? live.water() : (pending.water = true)),
   wallSetPaused: (paused) => (live ? live.setPaused(paused) : (pending.paused = Boolean(paused))),
   wallSetMaxFps: (fps) => (live ? live.setMaxFps(fps) : (pending.maxFps = fps)),
+  wallSetMotion: (level) => (live ? live.setMotion(level) : (pending.motion = level)),
 });
 
 /** The photo drawn small, for sampling leaf colours. */
@@ -47,7 +49,7 @@ function photoPixels(image, width = 400) {
 // Smoke runs exercise the queue: these calls arrive before the scene exists.
 if (SMOKE) {
   window.wallSetMaxFps(15); window.wallSetPaused(false);
-  window.wallSetPointer(100, 100); window.wallPointerOut(); window.wallWater();
+  window.wallSetPointer(100, 100); window.wallPointerOut(); window.wallWater(); window.wallSetMotion(DEFAULT_MOTION);
 }
 
 const loadTexture = (url) => new Promise((resolve, reject) => {
@@ -65,6 +67,7 @@ async function boot() {
 
   const random = createRandom(SEED);
   const wind = createWind(random);
+  const clock = createMotionClock(pending.motion);   // the wind runs on the Motion setting's clock
   const photoLayer = createPhotoLayer(photo, random);
   const leafData = generateLeaves(random);
   const springs = createSprings(leafData);
@@ -103,14 +106,16 @@ async function boot() {
   }
   function simulate(dt, t) {
     simTime = t;
-    const gust = wind.current(t);
+    const windTime = clock.advance(dt), { strength } = clock.level;
+    const gust = wind.current(windTime);
     const { wet, lift } = mist.update(t, pxPerUnit);
     if (lift) leafData.forEach((l, i) => springs.impulse(i, -LIFT * Math.sign(l.angle || 1)));
+    springs.setStrength(strength);
     springs.step(dt);
-    leaves.update(t, gust, wet);
+    leaves.update(windTime, gust, wet, strength);
     brain.tick(dt, pointer);
     holdPerches();
-    photoLayer.update(t, gust);
+    photoLayer.update(windTime, gust, strength);
     lights.update(t, pxPerUnit);
     glow.update(t);
   }
@@ -137,18 +142,20 @@ async function boot() {
       pointerCalls++;
       const p = toWall(fit, px, py, innerWidth, innerHeight);
       pointer = { x: p.x, y: p.y, inside: true };
-      photoLayer.poke(p.x, p.y, simTime);
+      photoLayer.poke(p.x, p.y, clock.time);
       springs.setPointer(p.x, p.y, simTime);
     },
     pointerOut() { pointer = null; springs.pointerOut(); },
     water() { if (loop.running) mist.water(simTime); },
     setPaused: (paused) => loop.setPaused(paused),
     setMaxFps: (fps) => loop.setMaxFps(fps),
+    setMotion: (level) => clock.set(level),
   };
   // What the scene is doing, for the host's diagnostics dump (kill -USR1) and the smoke test.
   window.wallState = () => ({
     drawn, running: loop.running, simTime: +simTime.toFixed(2), cpuMs: +cpuMs.toFixed(2),
     pointerCalls, pointer, bentLeaves: springs.activeCount, butterflies: brain.flyers.length,
+    motion: clock.level.level,
     view: [innerWidth, innerHeight, devicePixelRatio], fit,
   });
   /** Run the simulation from 0 to t without drawing, so a frozen frame shows what t would. */
@@ -174,9 +181,10 @@ function smokeReport(renderer) {
   }
   const mean = lum.reduce((a, b) => a + b, 0) / lum.length;
   const sd = Math.sqrt(lum.reduce((a, b) => a + (b - mean) ** 2, 0) / lum.length);
-  const bridge = ['wallSetPointer', 'wallPointerOut', 'wallWater', 'wallSetPaused', 'wallSetMaxFps'].every((f) => typeof window[f] === 'function');
+  const bridge = ['wallSetPointer', 'wallPointerOut', 'wallWater', 'wallSetPaused', 'wallSetMaxFps', 'wallSetMotion'].every((f) => typeof window[f] === 'function');
   const diagnostics = typeof window.wallState === 'function' && window.wallState().drawn >= 1;
-  console.log(`SMOKE ${JSON.stringify({ webgl2: gl instanceof WebGL2RenderingContext, bridge, diagnostics, mean, sd, nonBlank: mean > 0.03 && mean < 0.95 && sd > 0.02 })}`);
+  const motion = diagnostics ? window.wallState().motion : null;
+  console.log(`SMOKE ${JSON.stringify({ webgl2: gl instanceof WebGL2RenderingContext, bridge, diagnostics, motion, mean, sd, nonBlank: mean > 0.03 && mean < 0.95 && sd > 0.02 })}`);
 }
 
 boot().then((stats) => {
@@ -187,6 +195,7 @@ boot().then((stats) => {
     document.documentElement.addEventListener('pointerleave', () => window.wallPointerOut());
     addEventListener('click', () => window.wallWater());
     addEventListener('keydown', (e) => {
+      if (/^[1-5]$/.test(e.key)) { window.wallSetMotion(Number(e.key)); return; }   // Motion level
       if (e.code !== 'Space') return;
       e.preventDefault();
       pending.paused = !pending.paused;

@@ -29,6 +29,11 @@ enum HostLogicTest {
     check(statusLine(failed: false, power: power, paused: false, rate: 30) == "Running · 30 fps", "and it says it is running")
     check(statusLine(failed: false, power: power, paused: true, rate: 0) == "Paused", "pausing still works in Low Power Mode")
 
+    check(motionNames == ["Calm", "Gentle", "Lively", "Energetic", "Wild"], "five motion levels, Calm to Wild")
+    check(motionLevel(stored: nil) == 4, "Energetic until the user picks another level")
+    check(motionLevel(stored: 2) == 2, "a stored level is used")
+    check(motionLevel(stored: 0) == 1 && motionLevel(stored: 9) == 5, "a stored level out of range is clamped")
+
     let still = URL(fileURLWithPath: "/Users/me/Library/Application Support/Green Wall/still.jpg")
     let mine = URL(fileURLWithPath: "/Users/me/Pictures/beach.jpg")
     let other = URL(fileURLWithPath: "/Users/me/Pictures/mountain.jpg")

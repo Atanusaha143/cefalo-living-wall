@@ -47,7 +47,7 @@ export function createPhotoLayer(photo, random) {
   const uniforms = {
     uPhoto: { value: photo }, uNoise: { value: noiseTexture(random) },
     uTime: { value: 0 }, uGustStart: { value: -1e4 }, uGustStrength: { value: 0 },
-    uPointer: { value: new THREE.Vector2(-1e4, -1e4) }, uRipple: { value: 0 },
+    uPointer: { value: new THREE.Vector2(-1e4, -1e4) }, uRipple: { value: 0 }, uStrength: { value: 1 },
   };
   const material = new THREE.ShaderMaterial({
     uniforms, depthTest: false, depthWrite: false,
@@ -63,7 +63,7 @@ export function createPhotoLayer(photo, random) {
       ${LOGO_GLSL}
       uniform sampler2D uNoise;
       uniform vec2 uPointer;
-      uniform float uRipple;
+      uniform float uRipple, uStrength;
       varying vec2 vWall;
       float logoMask(vec2 p) {
         if (!nearLogo(p, 20.0)) return 0.0;
@@ -85,7 +85,7 @@ export function createPhotoLayer(photo, random) {
           float drift = uTime * ${D.coarse} + gust * 0.004;
           vec2 n = texture2D(uNoise, p / 3840.0 + vec2(drift, 0.0)).rg * 2.0 - 1.0;
           n += 0.5 * (texture2D(uNoise, p / 1280.0 + vec2(uTime * ${D.fine} + gust * 0.007, uTime * ${D.fineVertical})).rg * 2.0 - 1.0);
-          offset = n * (3.0 + 1.5 * abs(swayAt(p.x, 0.0)) + 2.5 * abs(gust));   // livelier, short of smearing
+          offset = n * (3.0 + 1.5 * abs(swayAt(p.x, 0.0)) + 2.5 * abs(gust)) * uStrength;   // short of smearing at 1
           float d = distance(p, uPointer);
           if (uRipple > 0.001 && d < 60.0) {
             offset += (p - uPointer) / max(d, 1.0) * 3.0 * uRipple * (1.0 - d / 60.0) * sin(d * 0.3 - uTime * 9.0);
@@ -105,7 +105,9 @@ export function createPhotoLayer(photo, random) {
     mesh,
     /** The cursor moved over the wall at (x, y), time t. */
     poke(x, y, t) { uniforms.uPointer.value.set(x, y); pokedAt = t; },
-    update(t, gust) {
+    /** t: wind time; strength: the Motion setting's (the shimmer is capped near Energetic so the photo never smears). */
+    update(t, gust, strength = 1) {
+      uniforms.uStrength.value = Math.min(strength, 1.3);
       const { time, gustStart } = shaderTime(t, gust);
       uniforms.uTime.value = time;
       uniforms.uGustStart.value = gustStart;

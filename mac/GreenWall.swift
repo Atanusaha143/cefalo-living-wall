@@ -115,6 +115,7 @@ final class Wallpaper: NSObject, WKNavigationDelegate {
   private var loaded = false
   private var rate = -1
   private var paused = false
+  private var motion = 4
   private var inside = false
   private var crashes = 0
   private var stableSince = Date()
@@ -185,9 +186,16 @@ final class Wallpaper: NSObject, WKNavigationDelegate {
     send()
   }
 
+  /// The Motion level (1 Calm … 5 Wild).
+  func setMotion(_ level: Int) {
+    guard level != motion else { return }
+    motion = level
+    send()
+  }
+
   private func send() {
     guard loaded else { return }
-    view.evaluateJavaScript("wallSetMaxFps(\(max(rate, 0))); wallSetPaused(\(paused))")
+    view.evaluateJavaScript("wallSetMaxFps(\(max(rate, 0))); wallSetPaused(\(paused)); wallSetMotion(\(motion))")
   }
 
   func water() {
@@ -323,6 +331,9 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private let state = NSMenuItem()
   private let waterItem = NSMenuItem(title: "Water", action: #selector(water), keyEquivalent: "")
   private let pauseItem = NSMenuItem(title: "Pause", action: #selector(togglePause), keyEquivalent: "")
+  private var motionItems: [NSMenuItem] = []
+  /// How fast and how far the leaves move; remembered across restarts.
+  private var motion = motionLevel(stored: UserDefaults.standard.object(forKey: "motion") as? Int)
   /// Remembered across restarts. With no choice stored yet, Reduce Motion starts it paused.
   private var paused =
     UserDefaults.standard.object(forKey: "paused") as? Bool
@@ -375,6 +386,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     layout = NSScreen.screens.map(\.frame)
     for screen in screens { screen.close() }
     screens = NSScreen.screens.map { Wallpaper(screen: $0, root: root) }
+    for screen in screens { screen.setMotion(motion) }
     applyRate()
   }
 
@@ -475,6 +487,18 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
       entry.target = self
       menu.addItem(entry)
     }
+    let levels = NSMenu(title: "Motion")
+    levels.autoenablesItems = false
+    for (index, name) in motionNames.enumerated() {
+      let item = NSMenuItem(title: name, action: #selector(chooseMotion), keyEquivalent: "")
+      item.target = self
+      item.tag = index + 1
+      levels.addItem(item)
+      motionItems.append(item)
+    }
+    let motionMenu = NSMenuItem(title: "Motion", action: nil, keyEquivalent: "")
+    motionMenu.submenu = levels
+    menu.addItem(motionMenu)
     menu.addItem(.separator())
     let quit = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
     quit.target = self
@@ -486,12 +510,19 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
   /// The status line says why the wall is still: unexplained stillness reads as a fault.
   func menuNeedsUpdate(_ menu: NSMenu) {
     state.title = statusLine(failed: screens.contains(where: \.failed), power: power, paused: paused, rate: applied)
+    for item in motionItems { item.state = item.tag == motion ? .on : .off }
     pauseItem.title = paused ? "Resume" : "Pause"
     pauseItem.isEnabled = true
     waterItem.isEnabled = !paused && applied > 0
   }
 
   @objc private func water() { for screen in screens { screen.water() } }
+
+  @objc private func chooseMotion(_ sender: NSMenuItem) {
+    motion = sender.tag
+    UserDefaults.standard.set(motion, forKey: "motion")
+    for screen in screens { screen.setMotion(motion) }
+  }
 
   @objc private func togglePause() {
     paused.toggle()
@@ -539,6 +570,7 @@ final class SceneCheck: NSObject, NSApplicationDelegate {
     let wall = Wallpaper(screen: NSScreen.main ?? NSScreen.screens[0], root: root, visible: false)
     self.wall = wall
     wall.setPaused(false)
+    wall.setMotion(2)
     wall.setRate(0)
     func expect(_ what: String, after delay: Double, _ test: @escaping (String) -> Bool, then next: @escaping () -> Void) {
       DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
@@ -552,7 +584,8 @@ final class SceneCheck: NSObject, NSApplicationDelegate {
       if wall.ready { next() } else { DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { whenReady(next) } }
     }
     whenReady {
-      expect("the scene kept running after the host asked for 0 fps", after: 1, { $0.contains("\"running\":false") }) {
+      expect("the scene kept running after the host asked for 0 fps", after: 1,
+        { $0.contains("\"running\":false") && $0.contains("\"motion\":2") }) {
         wall.setRate(30)
         expect("the scene did not restart at 30 fps", after: 1, { $0.contains("\"running\":true") }) {
           wall.setPointer(NSPoint(x: 300, y: 300))

@@ -29,6 +29,8 @@ Click the leaf in the menu bar:
 
 - **Water** mists the wall on every display; the leaves stay glossy for about a minute.
 - **Pause / Resume** stops or starts the animation, and is remembered.
+- **Motion** sets how fast and how far the leaves move: Calm, Gentle, Lively, Energetic
+  (the default) or Wild. It applies to every display and is remembered.
 - **Quit** closes it until you next log in.
 
 Move the cursor over the wall to brush the leaves. A resting butterfly takes off if the
@@ -78,8 +80,9 @@ npm run smoke        # headless Chrome loads the scene and checks it draws
 npm run test:mac     # coverage maths + the scene loading in WebKit
 ```
 
-In the browser: move the pointer over the leaves, click to water, Space to pause.
-Add `?debug` for frame rate and frame time, `?t=12` to freeze at 12 s, `?seed=3` for a
-different wall, and `?t=25&water=21` to see the mist.
+In the browser: move the pointer over the leaves, click to water, Space to pause, keys
+1–5 to pick the Motion level. Add `?debug` for frame rate and frame time, `?t=12` to
+freeze at 12 s, `?seed=3` for a different wall, `?motion=1`…`5` to start at a Motion
+level, and `?t=25&water=21` to see the mist.
 
 Three.js 0.186.0 is bundled under its MIT license (`scene/vendor/LICENSE`).

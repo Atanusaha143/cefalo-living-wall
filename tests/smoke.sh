@@ -34,6 +34,7 @@ for size in 1512,982 1920,1080; do
 	node -e '
 	  const r = JSON.parse(process.argv[1]);
 	  const bad = ["webgl2", "bridge", "nonBlank", "diagnostics"].filter((k) => r[k] !== true);
+	  if (r.motion !== 4) bad.push(`motion ${r.motion} (expected the Energetic default, 4)`);
 	  if (bad.length) { console.log(`FAIL ${process.argv[2]}:`, bad.join(", "), JSON.stringify(r)); process.exit(1); }
 	  console.log(`PASS ${process.argv[2]}`, JSON.stringify(r));
 	' "$line" "$size" || status=1
