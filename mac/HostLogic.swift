@@ -22,12 +22,13 @@ func statusLine(failed: Bool, power: PowerState, paused: Bool, rate: Int) -> Str
 }
 
 /// The desktop pictures to remember (screen ID → URL string) before showing the still:
-/// what was saved before stays, the still itself is never recorded, and a screen whose
-/// picture cannot be read is skipped.
-func picturesToSave(current: [String: URL?], saved: [String: String], still: URL) -> [String: String] {
+/// what was saved before stays, none of our own stills (current or from the Green Wall
+/// days) is ever recorded, and a screen whose picture cannot be read is skipped.
+func picturesToSave(current: [String: URL?], saved: [String: String], ours: [URL]) -> [String: String] {
+  let ourPaths = Set(ours.map { $0.standardizedFileURL.path })
   var out = saved
   for (id, url) in current {
-    guard out[id] == nil, let url, url.standardizedFileURL.path != still.standardizedFileURL.path else { continue }
+    guard out[id] == nil, let url, !ourPaths.contains(url.standardizedFileURL.path) else { continue }
     out[id] = url.absoluteString
   }
   return out
@@ -51,4 +52,37 @@ let motionNames = ["Calm", "Gentle", "Lively", "Energetic", "Wild"]
 func motionLevel(stored: Int?) -> Int {
   guard let stored else { return 4 }
   return min(motionNames.count, max(1, stored))
+}
+
+/// The preferences carried over from the old "Green Wall" app: only these keys, and only
+/// those the new app does not have yet.
+let importedSettingKeys = ["paused", "motion", "previousDesktopPictures"]
+
+func settingsToImport(old: [String: Any], new: [String: Any]) -> [String: Any] {
+  var out: [String: Any] = [:]
+  for key in importedSettingKeys where new[key] == nil {
+    if let value = old[key] { out[key] = value }
+  }
+  return out
+}
+
+/// Whether to offer, once, to open Screen Saver settings.
+func shouldOfferScreenSaver(alreadyShown: Bool, saverInstalled: Bool) -> Bool {
+  !alreadyShown && saverInstalled
+}
+
+/// What happens to the screen saver's view, and why (see the spec's lifecycle table).
+enum SaverEvent { case willStop, removedFromWindow, start, stop }
+enum SaverAction: Equatable { case pause, resume, tearDown, exitProcess }
+
+/// `inHost`: running inside macOS's legacyScreenSaver, the only process that may be exited.
+/// It never tears finished savers down, so a real run ends by leaving the process; previews
+/// live in System Settings' host and are only paused.
+func saverActions(for event: SaverEvent, isPreview: Bool, inHost: Bool) -> [SaverAction] {
+  switch event {
+  case .willStop: return !isPreview && inHost ? [.pause, .exitProcess] : [.pause]
+  case .removedFromWindow: return [.tearDown]
+  case .start: return [.resume]
+  case .stop: return [.pause]
+  }
 }
