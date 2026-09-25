@@ -71,4 +71,4 @@ PLIST
 launchctl bootstrap "$domain" "$agent"
 echo "Cefalo Living Wall installed: $app"
 echo "Screen saver installed: $saver (choose it in System Settings > Screen Saver)"
-echo "Look for the leaf in the menu bar. Log: ~/Library/Logs/Cefalo Living Wall.log"
+echo "Look for the three dots and two leaves in the menu bar. Log: ~/Library/Logs/Cefalo Living Wall.log"

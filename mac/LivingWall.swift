@@ -470,11 +470,11 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
   // MARK: - Menu bar
 
   private func addMenu() {
-    let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-    let symbol = NSImage(systemSymbolName: "leaf.fill", accessibilityDescription: "Cefalo Living Wall")
-    symbol?.isTemplate = true
-    item.button?.image = symbol
-    if symbol == nil { item.button?.title = "Cefalo Living Wall" }
+    // Cefalo's three dots with two leaves opening from them (MenuIcon); the item fits its width.
+    let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    let icon = MenuIcon.image()
+    item.button?.image = icon
+    if icon == nil { item.button?.title = "Cefalo Living Wall" }
     item.button?.toolTip = "Cefalo Living Wall"
     let menu = NSMenu()
     menu.delegate = self

@@ -30,7 +30,7 @@ choice, Motion level and remembered original wallpaper carry over.
 
 ## Use
 
-Click the leaf in the menu bar:
+Click the icon in the menu bar, Cefalo's three dots with two leaves opening from them:
 
 - **Pause / Resume** stops or starts the animation, and is remembered.
 - **Rain** makes it rain in front of the wall on every display: **Drizzle**, **Steady** or
@@ -89,7 +89,7 @@ and its downlights stay clear of the menu bar.
 windows, screen locked, screen saver running). If Reduce Motion is on, it starts paused
 until you choose Resume.
 
-**Where is the leaf icon?** On a MacBook with a notch, macOS hides menu-bar icons that do
+**Where is the menu bar icon?** On a MacBook with a notch, macOS hides menu-bar icons that do
 not fit beside it. Quit or ⌘-drag away another icon to make room.
 
 **Can the lock screen itself move?** No. No app can draw on the macOS lock screen, and
