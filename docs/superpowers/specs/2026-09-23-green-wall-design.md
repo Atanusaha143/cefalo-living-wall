@@ -103,9 +103,9 @@ CPU ms and a GPU-synced frame ms · `?t=<s>&water=<s>` show the mist (water at t
 - **Scene units are photo pixels of a 1600×1067 reference** (the photo scaled to 1600 wide). Every layout
   constant below uses these units; the shipped texture is higher resolution but maps onto the same space.
 - One fixed **orthographic camera** looking straight at the wall.
-- The wall fills each display like CSS `object-fit: cover`, but anchored **30 % from the top**: a wide
-  screen crops 30 % of the excess height from the top and 70 % from the bottom, so the downlights stay
-  in view on a 16:9 display (§9).
+- The wall fills each display like CSS `object-fit: cover`, but anchored **10 % from the top**: a wide
+  screen crops 10 % of the excess height from the top and 90 % from the bottom, so the downlights stay
+  clear of the menu bar on a 16:9 display (§9, §12).
 - Renderer: WebGL2, `devicePixelRatio` capped at 2, antialiasing on.
 
 Tuned constants (from the prototype):
@@ -113,14 +113,14 @@ Tuned constants (from the prototype):
 | Constant | Value |
 |---|---|
 | Logo box (letters) | x 450–1145, y 425–578 |
-| Downlights | (255,57) (527,59) (795,64) (1066,73) (1330,82) (1590,87) |
-| Ceiling edge (wall top) | straight line from y=82 at x=0 to y=108 at x=1600 |
+| Downlights | (260,53) (531,50) (798,49) (1069,53) (1331,57) (1595,55) — printed by `npm run photo` (§12) |
+| Ceiling edge (wall top) | level at y = 80 (the photo is levelled, §12) |
 | Wall bottom (pebbles start) | y = 980 |
 
 ### 4.2 Photo layer
 
-- A full-screen plane textured with `scene/assets/wall.jpg` (3840×2560, JPEG, derived from
-  `assets-src/green-wall.jpg` with `sips`).
+- A full-screen plane textured with `scene/assets/wall.jpg` (3840×2560, JPEG, made from
+  `assets-src/green-wall.jpg` by `npm run photo`: ceiling levelled, corners lifted; §12).
 - **Masks are computed in the shader, not pre-baked:**
   - *Wall mask* — the region between the ceiling edge and wall bottom, feathered by ~5 units.
   - *Logo mask* — inside the logo box (+20 margin), pixels whose blue channel exceeds ~0.72 (the
@@ -325,7 +325,10 @@ deletes the app and `~/Library/Application Support/Green Wall/`. Preferences are
 ├── README.md                install · use · uninstall · FAQ
 ├── package.json             scripts only (start, test); no npm dependencies
 ├── serve.mjs                local static server for browser mode
-├── assets-src/green-wall.jpg   original photo (not shipped)
+├── assets-src/
+│   ├── green-wall.jpg       original photo (not shipped)
+│   ├── PhotoFix.swift       levelling and corner-lift maths (pure; tests/photo-fix-test.swift)
+│   └── prepare-photo.swift + prepare-photo.sh   writes scene/assets/wall.jpg (`npm run photo`)
 ├── scene/
 │   ├── index.html           page, CSP, loads src/main.js
 │   ├── vendor/three.module.js + three.core.js + LICENSE + VERSION   (Three.js 0.186.0)
@@ -442,3 +445,20 @@ Measured while planning: a full frame at the XDR display's 3024×1964 takes ≈3
 
 `2026-09-24-screen-saver-and-rename-design.md`: the product is renamed **Cefalo Living Wall** everywhere,
 and gains a screen-saver version with its own Options and a one-time "use as screen saver" prompt.
+
+## 12. Photo alignment (2026-09-25)
+
+The user found the photo "not well aligned from every corner". Measured on the 3840×2560 photo: the
+ceiling's front beam and its edge against the leaves slope down to the right (by 83 and 67 px), while the
+logo and the curb are level to within 5–8 px; the outer strips are ⅓–½ as bright as the middle (camera
+vignetting); and a 16:9 screen, cropping 30 % of its excess from the top, hid the downlights behind the
+menu bar. The user approved a before/after preview of each fix.
+
+| Decision | Change |
+|---|---|
+| **Level the ceiling** | `npm run photo` (`assets-src/PhotoFix.swift`) moves only the band above the logo, straight up, until both ceiling lines are level with their left ends; nothing moves from y=880 (photo px) down, so the logo, leaves and curb keep their places and the logo box and pebble line are unchanged. The wall top becomes level at y = 80; the downlights are re-measured (their old x values were ~4 units left) |
+| **Lift the corners, as previewed** | In linear light, gain 1 + 1.2·r^2.7 (r = 1 in the corners: 2.2×, 1.18× halfway), easing off towards white so the logo never clips; about two-thirds of the way to the middle's brightness |
+| **Wide screens crop from the bottom** (the user chose the "less top crop" preview for the external monitor) | Cover fit anchored 10 % from the top (was 30 %); tested against the user's two screens and their menu bars (34 pt built-in, 30 pt on the 1080p monitor) |
+| Desktop still | Reinstalling copies the new photo over `still.jpg` at the same path; checked on the user's Mac that macOS then shows the new picture (no renamed file needed) |
+| Shader constants from `wall.js` | The photo shader's ceiling line, pebble line and logo box are generated from `wall.js` instead of repeated, so they cannot drift apart again |
+

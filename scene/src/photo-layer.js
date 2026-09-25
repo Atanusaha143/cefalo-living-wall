@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three.module.js';
-import { WALL_W, WALL_H } from './wall.js';
+import { WALL_W, WALL_H, WALL_TOP, WALL_BOTTOM, LOGO_BOX } from './wall.js';
 import { shaderTime } from './wind.js';
 
 // How fast the two noise octaves drift (texture turns per second). Each must complete
@@ -27,7 +27,9 @@ export const LOGO_GLSL = /* glsl */ `
   uniform sampler2D uPhoto;
   vec2 uvOf(vec2 wall) { return vec2(wall.x / ${WALL_W.toFixed(1)}, 1.0 - wall.y / ${WALL_H.toFixed(1)}); }
   float letterAt(vec2 p) { return smoothstep(0.70, 0.80, texture2D(uPhoto, uvOf(p)).b); }
-  bool nearLogo(vec2 p, float pad) { return p.x > 450.0 - pad && p.x < 1145.0 + pad && p.y > 425.0 - pad && p.y < 578.0 + pad; }
+  bool nearLogo(vec2 p, float pad) {
+    return p.x > ${LOGO_BOX.x0.toFixed(1)} - pad && p.x < ${LOGO_BOX.x1.toFixed(1)} + pad && p.y > ${LOGO_BOX.y0.toFixed(1)} - pad && p.y < ${LOGO_BOX.y1.toFixed(1)} + pad;
+  }
 `;
 
 function noiseTexture(random, size = 128) {
@@ -76,8 +78,7 @@ export function createPhotoLayer(photo, random) {
       }
       void main() {
         vec2 p = vWall;
-        float top = 82.0 + 26.0 * p.x / 1600.0;
-        float wall = smoothstep(top, top + 10.0, p.y) * (1.0 - smoothstep(970.0, 980.0, p.y));
+        float wall = smoothstep(${WALL_TOP.toFixed(1)}, ${(WALL_TOP + 10).toFixed(1)}, p.y) * (1.0 - smoothstep(${(WALL_BOTTOM - 10).toFixed(1)}, ${WALL_BOTTOM.toFixed(1)}, p.y));
         float free = wall * (1.0 - logoMask(p));
         vec2 offset = vec2(0.0);
         if (free > 0.001) {

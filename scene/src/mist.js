@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three.module.js';
-import { WALL_W, wallTop } from './wall.js';
+import { WALL_W, WALL_TOP } from './wall.js';
 
 export const MIST = { falling: 6, dryOver: 60, liftAt: 1.5 };
 
@@ -15,7 +15,7 @@ export function createMist(random, count = 900) {
   const data = [];
   for (let i = 0; i < count; i++) {
     const x = random.range(0, WALL_W);
-    data.push(x, wallTop(x), random.range(0, MIST.falling), random.range(110, 200), random.range(-10, 10), random.range(860, 975), random.range(2.5, 5), 0);
+    data.push(x, WALL_TOP, random.range(0, MIST.falling), random.range(110, 200), random.range(-10, 10), random.range(860, 975), random.range(2.5, 5), 0);
   }
   const g = new THREE.BufferGeometry();
   const buf = new THREE.InterleavedBuffer(new Float32Array(data), 8);

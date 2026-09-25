@@ -1,9 +1,9 @@
 import { WALL_W, WALL_H } from './wall.js';
 
 // Which part of the wall a viewport shows. Like CSS object-fit: cover, except that a
-// wide screen crops less from the top than the bottom (anchorY), so the ceiling
-// downlights stay in view on 16:9 displays.
-export function coverFit(viewW, viewH, anchorY = 0.3) {
+// wide screen crops mostly from the bottom (anchorY), so the ceiling downlights stay
+// clear of the menu bar on 16:9 displays.
+export function coverFit(viewW, viewH, anchorY = 0.1) {
   const aspect = viewW / viewH;
   let w = WALL_W, h = WALL_H;
   if (aspect > WALL_W / WALL_H) h = WALL_W / aspect;

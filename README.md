@@ -74,7 +74,9 @@ of windows (to know how much of the desktop is visible). Never window contents, 
 keystrokes. It needs no Accessibility, Input Monitoring or Screen Recording permission,
 and makes no network requests.
 
-**Multiple displays?** Each display gets its own wall; Water mists all of them.
+**Multiple displays?** Each display gets its own wall; Water mists all of them. A screen
+wider than the photo, such as a 16:9 monitor, shows its full width and crops mostly from
+the bottom, so the ceiling and its downlights stay clear of the menu bar.
 
 **Why is it not moving?** Open the menu: the first line says why (paused, covered by
 windows, screen locked, screen saver running). If Reduce Motion is on, it starts paused
@@ -100,11 +102,18 @@ npm start            # browser preview at http://127.0.0.1:8080/scene/
 npm test             # unit tests
 npm run smoke        # headless Chrome loads the scene and checks it draws
 npm run test:mac     # host logic + the app and screen saver running in WebKit
+npm run test:photo   # the maths that prepares the photo
 ```
 
 In the browser: move the pointer over the leaves, click to water, Space to pause, keys
 1–5 to pick the Motion level. Add `?debug` for frame rate and frame time, `?t=12` to
 freeze at 12 s, `?seed=3` for a different wall, `?motion=1`…`5` to start at a Motion
 level, and `?t=25&water=21` to see the mist.
+
+The photo the scene uses, `scene/assets/wall.jpg`, is made from the original
+`assets-src/green-wall.jpg` by `npm run photo`: it scales it to 3840×2560, levels the
+ceiling (the camera caught it sloping down to the right) and lifts the dark corners part
+of the way. The command prints where the downlights ended up; copy that line into
+`LIGHTS` in `scene/src/wall.js`.
 
 Three.js 0.186.0 is bundled under its MIT license (`scene/vendor/LICENSE`).

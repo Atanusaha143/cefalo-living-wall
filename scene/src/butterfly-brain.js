@@ -1,4 +1,4 @@
-import { WALL_W, WALL_BOTTOM, wallTop, inLogo, LOGO_BOX } from './wall.js';
+import { WALL_W, WALL_TOP, WALL_BOTTOM, inLogo, LOGO_BOX } from './wall.js';
 
 // Where the butterflies are and what they are doing. Pure and seeded: butterflies.js
 // only draws what this decides. Positions are wall units (y down), headings radians.
@@ -21,7 +21,7 @@ const LOGO_CENTRE = { x: (LOGO_BOX.x0 + LOGO_BOX.x1) / 2, y: (LOGO_BOX.y0 + LOGO
 
 /** Whether a leaf midpoint is somewhere a butterfly may land. */
 export function isPerch(x, y) {
-  return x > 80 && x < WALL_W - 80 && y > wallTop(x) + 40 && y < WALL_BOTTOM - 40 && !inLogo(x, y, BUTTERFLY.logoMargin);
+  return x > 80 && x < WALL_W - 80 && y > WALL_TOP + 40 && y < WALL_BOTTOM - 40 && !inLogo(x, y, BUTTERFLY.logoMargin);
 }
 
 export function createButterflyBrain({ random, perches, perchPosition = (i) => perches.find((p) => p.index === i) }) {
@@ -38,7 +38,7 @@ export function createButterflyBrain({ random, perches, perchPosition = (i) => p
   function waypoint(from = null, reach = 450) {
     for (let tries = 0; ; tries++) {
       const x = random.range(120, WALL_W - 120);
-      const y = random.range(wallTop(x) + 60, 900);
+      const y = random.range(WALL_TOP + 60, 900);
       if (inLogo(x, y, B.logoMargin + 20)) continue;
       if (from && tries < 20 && Math.hypot(x - from.x, y - from.y) > reach) continue;
       return { x, y };
@@ -82,7 +82,7 @@ export function createButterflyBrain({ random, perches, perchPosition = (i) => p
     b.perch = null;
     b.restsLeft -= 1;
     const first = away
-      ? { x: Math.min(WALL_W - 120, Math.max(120, b.x + away.x * 220)), y: Math.min(900, Math.max(wallTop(b.x) + 60, b.y + away.y * 220)) }
+      ? { x: Math.min(WALL_W - 120, Math.max(120, b.x + away.x * 220)), y: Math.min(900, Math.max(WALL_TOP + 60, b.y + away.y * 220)) }
       : waypoint(b);
     b.waypoints = [first, ...(random.chance(0.25) ? [waypoint(first)] : [])];
   }

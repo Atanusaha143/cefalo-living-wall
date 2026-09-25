@@ -1,4 +1,4 @@
-import { WALL_W, WALL_BOTTOM, wallTop, inLogo } from './wall.js';
+import { WALL_W, WALL_TOP, WALL_BOTTOM, inLogo } from './wall.js';
 
 // Where the front leaves grow. Pure: the same random sequence gives the same wall.
 // Angles are degrees clockwise from straight up, in wall units (y down).
@@ -20,19 +20,19 @@ export function generateLeaves(random, P = LAYOUT) {
     for (let x = random.range(-30, 20); x < WALL_W + 30;) {
       x += random.range(...P.pocketGap);
       const px = x + random.range(-10, 10), py = row + random.range(-9, 9);
-      if (!random.chance(P.occupancy) || inLogo(px, py, 30) || py < wallTop(px) + 30) continue;
+      if (!random.chance(P.occupancy) || inLogo(px, py, 30) || py < WALL_TOP + 30) continue;
       const count = random.pick(P.perPocket);
       for (let k = 0; k < count; k++) {
         let angle = random.gauss(0, P.spread);
         if (random.chance(P.droop)) angle = (random.chance(0.5) ? -1 : 1) * random.range(95, 140);
-        if (py < wallTop(px) + 70) angle = Math.sign(angle || 1) * random.range(75, 140);
+        if (py < WALL_TOP + 70) angle = Math.sign(angle || 1) * random.range(75, 140);
         const base = along(px, py, angle, random.range(...P.stem));
         const deep = random.chance(P.deep);
         const scale = random.range(...P.scale) * (deep ? 0.8 : 1);
         const mid = along(base.x, base.y, angle, LEAF_LENGTH * scale * 0.55);
         const tip = along(base.x, base.y, angle, LEAF_LENGTH * scale);
         if (inLogo(mid.x, mid.y, 12) || inLogo(tip.x, tip.y, 12)) continue;
-        if (tip.y < wallTop(tip.x) + 6 || tip.y > WALL_BOTTOM + 6) continue;
+        if (tip.y < WALL_TOP + 6 || tip.y > WALL_BOTTOM + 6) continue;
         leaves.push({
           x: base.x, y: base.y, pocketX: px, pocketY: py,
           angle, scale, foreshorten: random.range(...P.foreshorten),
