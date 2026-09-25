@@ -1,7 +1,7 @@
 #!/bin/sh
-# The macOS host's tests: the coverage maths and host decisions, then the real scene
-# and the screen saver loading in WebKit (the app's --check and --check-saver). Needs the
-# Xcode command line tools.
+# The macOS host's tests: the coverage maths, host decisions and the screen saver's stored
+# settings, then the real scene and the screen saver loading in WebKit (the app's --check
+# and --check-saver). Needs the Xcode command line tools.
 set -eu
 here=$(cd "$(dirname "$0")/.." && pwd)
 build=$(mktemp -d)
@@ -11,6 +11,9 @@ swiftc -parse-as-library -swift-version 5 -o "$build/coverage-test" "$here/Cover
 "$build/coverage-test"
 swiftc -parse-as-library -swift-version 5 -o "$build/host-logic-test" "$here/HostLogic.swift" "$here/tests/host-logic-test.swift"
 "$build/host-logic-test"
+swiftc -parse-as-library -swift-version 5 -o "$build/saver-settings-test" "$here/HostLogic.swift" "$here/SaverSettings.swift" \
+	"$here/tests/saver-settings-test.swift" -framework ScreenSaver
+"$build/saver-settings-test"
 
 sh "$here/build.sh" "$build"
 "$build/Cefalo Living Wall.app/Contents/MacOS/Cefalo Living Wall" --check

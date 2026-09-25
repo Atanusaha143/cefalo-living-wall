@@ -12,19 +12,6 @@ let saverLog = Logger(subsystem: "local.cefalo-living-wall.saver", category: "sa
 /// Public, or the unified log redacts it.
 func slog(_ message: String) { saverLog.log("\(message, privacy: .public)") }
 
-/// The saver's own settings, edited in its Options sheet.
-enum SaverSettings {
-  static let module = "local.cefalo-living-wall.saver"
-  static var defaults: UserDefaults? { ScreenSaverDefaults(forModuleWithName: module) }
-  static var motion: Int {
-    get { motionLevel(stored: defaults?.object(forKey: "motion") as? Int) }
-    set {
-      defaults?.set(newValue, forKey: "motion")
-      defaults?.synchronize()
-    }
-  }
-}
-
 /// The system's screen-saver session, shared by every view in this host process: a view
 /// created just after "did start" (macOS 26 sometimes shows exactly that one) still knows.
 enum SaverSession {
@@ -70,7 +57,7 @@ final class OptionsSheet: NSObject {
     if let current { return current.window }   // the host may ask more than once
     let sheet = OptionsSheet()
     current = sheet
-    slog("options sheet shown (motion \(SaverSettings.motion))")
+    slog("options sheet shown (motion \(SaverSettings.shared.motion))")
     return sheet.window
   }
 
@@ -83,7 +70,7 @@ final class OptionsSheet: NSObject {
     let label = NSTextField(labelWithString: "Motion:")
     label.frame = NSRect(x: 20, y: 102, width: 70, height: 20)
     popup.addItems(withTitles: motionNames)
-    popup.selectItem(at: SaverSettings.motion - 1)
+    popup.selectItem(at: SaverSettings.shared.motion - 1)
     let hint = NSTextField(labelWithString: "How fast and how far the leaves move.")
     hint.frame = NSRect(x: 20, y: 66, width: 320, height: 20)
     hint.textColor = .secondaryLabelColor
@@ -99,7 +86,7 @@ final class OptionsSheet: NSObject {
 
   @objc private func save() {
     let level = motionLevel(stored: popup.indexOfSelectedItem + 1)
-    SaverSettings.motion = level
+    SaverSettings.shared.motion = level
     slog("options saved: motion \(level)")
     // This process's views, and every other saver host (the thumbnail may live elsewhere).
     NotificationCenter.default.post(name: SaverSession.motionChanged, object: nil, userInfo: ["level": level])
@@ -156,7 +143,7 @@ final class LivingWallSaverView: ScreenSaverView {
     messages.handler = { [weak self] message in self?.received(message) }
     addSubview(view)
     web = view
-    view.load(URLRequest(url: sceneURL("motion=\(SaverSettings.motion)")))
+    view.load(URLRequest(url: sceneURL("motion=\(SaverSettings.shared.motion)")))
     readyTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: false) { [weak self] _ in
       guard let self, !self.ready else { return }
       slog("the scene was not ready within 15 s; showing the still photo")
@@ -170,7 +157,7 @@ final class LivingWallSaverView: ScreenSaverView {
       ready = true
       readyTimer?.invalidate()
       slog("ready preview \(isPreview) \(visibility)")
-      send("wallSetMaxFps(\(isPreview ? 15 : 30)); wallSetMotion(\(SaverSettings.motion))")
+      send("wallSetMaxFps(\(isPreview ? 15 : 30)); wallSetMotion(\(SaverSettings.shared.motion))")
       refresh()
     case "failed":
       slog("the scene failed: \(message["reason"] ?? "unknown")")

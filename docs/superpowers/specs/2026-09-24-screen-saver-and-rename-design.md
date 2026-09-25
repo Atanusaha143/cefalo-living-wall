@@ -125,7 +125,7 @@ performs the actions.
   - a **Motion** pop-up (Calm, Gentle, Lively, Energetic, Wild);
   - the line "How fast and how far the leaves move.";
   - **Cancel** and **Done** buttons.
-- Storage: `ScreenSaverDefaults(forModuleWithName: "local.cefalo-living-wall.saver")`, key `motion`
+- Storage (`mac/SaverSettings.swift`): `ScreenSaverDefaults(forModuleWithName: "local.cefalo-living-wall.saver")`, key `motion`
   (Int, 1–5). Missing or out-of-range values resolve through the existing `motionLevel(stored:)`
   (default 4, Energetic).
 - **Done** saves, synchronises, and sends `wallSetMotion(level)` to every live view of this module in the process.
@@ -211,3 +211,4 @@ logs, loginwindow logs) and the user's choices led to:
 | Previews paused on `willstop` would stay frozen (review finding) | Previews are never paused |
 | On lock, macOS started and stopped the saver every ~30 s with its window not visible, and the lock screen showed a still | The lock screen is **not** live on macOS 26 (documented in the README) |
 | Each display keeps its own screen-saver choice | README: choose it per display |
+| The Options level was forgotten once the host restarted (found 2026-09-25: Calm read back as Energetic, and no settings file existed anywhere): the old code called `set` and `synchronize` on two different `ScreenSaverDefaults` instances, and ScreenSaverDefaults drops a change its own instance never synchronises | `mac/SaverSettings.swift` sets and synchronises on one instance and reads through a fresh one; `mac/tests/saver-settings-test.swift` saves a level and reads it back from a separate process |

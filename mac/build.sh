@@ -32,7 +32,7 @@ rm -rf "$saver"
 mkdir -p "$saver/Contents/MacOS" "$saver/Contents/Resources"
 swiftc -O -parse-as-library -swift-version 5 -module-name LivingWallSaver -target "$target" \
 	-emit-executable -Xlinker -bundle -o "$saver/Contents/MacOS/Cefalo Living Wall" \
-	"$here/Saver.swift" "$here/SceneWebView.swift" "$here/HostLogic.swift" \
+	"$here/Saver.swift" "$here/SaverSettings.swift" "$here/SceneWebView.swift" "$here/HostLogic.swift" \
 	-framework Cocoa -framework WebKit -framework ScreenSaver
 cp "$here/Saver-Info.plist" "$saver/Contents/Info.plist"
 cp -R "$project/scene" "$saver/Contents/Resources/"
