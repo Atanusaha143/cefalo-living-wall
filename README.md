@@ -1,8 +1,8 @@
 # Cefalo Living Wall
 
 The Cefalo green wall as a live macOS desktop wallpaper and screen saver. The leaves
-sway in the breeze, gusts roll across the wall, leaves bend away from your cursor,
-butterflies drop by now and then, and **Water** mists the whole wall.
+sway in the breeze, gusts roll across the wall, leaves bend away from your cursor, and
+butterflies drop by now and then.
 
 It is the real photo with a layer of 3D leaves in front, rendered with Three.js in a
 web view that sits behind your desktop icons. Everything runs locally and offline.
@@ -31,7 +31,6 @@ choice, Motion level and remembered original wallpaper carry over.
 
 Click the leaf in the menu bar:
 
-- **Water** mists the wall on every display; the leaves stay glossy for about a minute.
 - **Pause / Resume** stops or starts the animation, and is remembered.
 - **Motion** sets how fast and how far the leaves move: Calm, Gentle, Lively, Energetic
   (the default) or Wild. It applies to every display and is remembered.
@@ -74,9 +73,9 @@ of windows (to know how much of the desktop is visible). Never window contents, 
 keystrokes. It needs no Accessibility, Input Monitoring or Screen Recording permission,
 and makes no network requests.
 
-**Multiple displays?** Each display gets its own wall; Water mists all of them. A screen
-wider than the photo, such as a 16:9 monitor, shows its full width and crops mostly from
-the bottom, so the ceiling and its downlights stay clear of the menu bar.
+**Multiple displays?** Each display gets its own wall. A screen wider than the photo, such
+as a 16:9 monitor, shows its full width and crops mostly from the bottom, so the ceiling
+and its downlights stay clear of the menu bar.
 
 **Why is it not moving?** Open the menu: the first line says why (paused, covered by
 windows, screen locked, screen saver running). If Reduce Motion is on, it starts paused
@@ -105,10 +104,9 @@ npm run test:mac     # host logic + the app and screen saver running in WebKit
 npm run test:photo   # the maths that prepares the photo
 ```
 
-In the browser: move the pointer over the leaves, click to water, Space to pause, keys
-1–5 to pick the Motion level. Add `?debug` for frame rate and frame time, `?t=12` to
-freeze at 12 s, `?seed=3` for a different wall, `?motion=1`…`5` to start at a Motion
-level, and `?t=25&water=21` to see the mist.
+In the browser: move the pointer over the leaves, Space to pause, keys 1–5 to pick the
+Motion level. Add `?debug` for frame rate and frame time, `?t=12` to freeze at 12 s,
+`?seed=3` for a different wall, and `?motion=1`…`5` to start at a Motion level.
 
 The photo the scene uses, `scene/assets/wall.jpg`, is made from the original
 `assets-src/green-wall.jpg` by `npm run photo`: it scales it to 3840×2560, levels the

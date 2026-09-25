@@ -12,27 +12,23 @@ import { createLeaves } from './leaves.js';
 import { createLights } from './lights.js';
 import { createLogoGlow } from './logo-glow.js';
 import { createButterflies } from './butterflies.js';
-import { createMist } from './mist.js';
 import { createMotionClock, DEFAULT_MOTION } from './motion.js';
 
 const params = new URLSearchParams(location.search);
 const SEED = Number(params.get('seed') ?? 7);
 const FREEZE = params.has('t') ? Number(params.get('t')) : null;
 const DEBUG = params.has('debug'), SMOKE = params.has('smoke');
-const WATER_AT = params.has('water') ? Number(params.get('water')) : null;   // with ?t=, for checking the mist
 const host = window.webkit?.messageHandlers?.wall;
 const post = (message) => host?.postMessage(message);
 const DIP = 4;          // degrees a leaf dips under a resting butterfly
-const LIFT = 1.2;       // degrees per substep the mist lifts every leaf, once
 
 // The bridge. The host (or browser input) may call these before the scene is ready;
 // until then the latest values wait in `pending`.
 let live = null;
-const pending = { pointer: null, paused: false, maxFps: 30, water: false, motion: params.get('motion') ?? DEFAULT_MOTION };
+const pending = { pointer: null, paused: false, maxFps: 30, motion: params.get('motion') ?? DEFAULT_MOTION };
 Object.assign(window, {
   wallSetPointer: (x, y) => (live ? live.pointer(x, y) : (pending.pointer = [x, y])),
   wallPointerOut: () => (live ? live.pointerOut() : (pending.pointer = null)),
-  wallWater: () => (live ? live.water() : (pending.water = true)),
   wallSetPaused: (paused) => (live ? live.setPaused(paused) : (pending.paused = Boolean(paused))),
   wallSetMaxFps: (fps) => (live ? live.setMaxFps(fps) : (pending.maxFps = fps)),
   wallSetMotion: (level) => (live ? live.setMotion(level) : (pending.motion = level)),
@@ -49,7 +45,7 @@ function photoPixels(image, width = 400) {
 // Smoke runs exercise the queue: these calls arrive before the scene exists.
 if (SMOKE) {
   window.wallSetMaxFps(15); window.wallSetPaused(false);
-  window.wallSetPointer(100, 100); window.wallPointerOut(); window.wallWater(); window.wallSetMotion(DEFAULT_MOTION);
+  window.wallSetPointer(100, 100); window.wallPointerOut(); window.wallSetMotion(DEFAULT_MOTION);
 }
 
 const loadTexture = (url) => new Promise((resolve, reject) => {
@@ -74,14 +70,13 @@ async function boot() {
   const leaves = createLeaves(leafData, photoPixels(photo.image), random, springs);
   const lights = createLights(random);
   const glow = createLogoGlow(photo);
-  const mist = createMist(random);
   const butterflies = createButterflies();
   const brain = createButterflyBrain({
     random: createRandom(SEED + 1),
     perches: leafData.map((l, index) => ({ index, x: l.midX, y: l.midY })),
     perchPosition: (i) => leaves.midpoint(i),
   });
-  world.add(photoLayer.mesh, leaves.group, butterflies.group, mist.points, lights.group, glow.mesh);
+  world.add(photoLayer.mesh, leaves.group, butterflies.group, lights.group, glow.mesh);
 
   let fit = coverFit(innerWidth, innerHeight), pxPerUnit = 1;
   function resize() {
@@ -108,11 +103,9 @@ async function boot() {
     simTime = t;
     const windTime = clock.advance(dt), { strength } = clock.level;
     const gust = wind.current(windTime);
-    const { wet, lift } = mist.update(t, pxPerUnit);
-    if (lift) leafData.forEach((l, i) => springs.impulse(i, -LIFT * Math.sign(l.angle || 1)));
     springs.setStrength(strength);
     springs.step(dt);
-    leaves.update(windTime, gust, wet, strength);
+    leaves.update(windTime, gust, 0, strength);   // 0: the leaves are dry
     brain.tick(dt, pointer);
     holdPerches();
     photoLayer.update(windTime, gust, strength);
@@ -146,7 +139,6 @@ async function boot() {
       springs.setPointer(p.x, p.y, simTime);
     },
     pointerOut() { pointer = null; springs.pointerOut(); },
-    water() { if (loop.running) mist.water(simTime); },
     setPaused: (paused) => loop.setPaused(paused),
     setMaxFps: (fps) => loop.setMaxFps(fps),
     setMotion: (level) => clock.set(level),
@@ -160,10 +152,7 @@ async function boot() {
   });
   /** Run the simulation from 0 to t without drawing, so a frozen frame shows what t would. */
   function fastForward(t) {
-    for (let s = 1 / 30; s <= t; s += 1 / 30) {
-      if (WATER_AT !== null && s - 1 / 30 < WATER_AT && s >= WATER_AT) mist.water(s);
-      simulate(1 / 30, s);
-    }
+    for (let s = 1 / 30; s <= t; s += 1 / 30) simulate(1 / 30, s);
   }
   return {
     renderer, loop, fastForward,
@@ -181,7 +170,7 @@ function smokeReport(renderer) {
   }
   const mean = lum.reduce((a, b) => a + b, 0) / lum.length;
   const sd = Math.sqrt(lum.reduce((a, b) => a + (b - mean) ** 2, 0) / lum.length);
-  const bridge = ['wallSetPointer', 'wallPointerOut', 'wallWater', 'wallSetPaused', 'wallSetMaxFps', 'wallSetMotion'].every((f) => typeof window[f] === 'function');
+  const bridge = ['wallSetPointer', 'wallPointerOut', 'wallSetPaused', 'wallSetMaxFps', 'wallSetMotion'].every((f) => typeof window[f] === 'function');
   const diagnostics = typeof window.wallState === 'function' && window.wallState().drawn >= 1;
   const motion = diagnostics ? window.wallState().motion : null;
   console.log(`SMOKE ${JSON.stringify({ webgl2: gl instanceof WebGL2RenderingContext, bridge, diagnostics, motion, mean, sd, nonBlank: mean > 0.03 && mean < 0.95 && sd > 0.02 })}`);
@@ -193,7 +182,6 @@ boot().then((stats) => {
   if (!host) {
     addEventListener('pointermove', (e) => window.wallSetPointer(e.clientX, e.clientY));
     document.documentElement.addEventListener('pointerleave', () => window.wallPointerOut());
-    addEventListener('click', () => window.wallWater());
     addEventListener('keydown', (e) => {
       if (/^[1-5]$/.test(e.key)) { window.wallSetMotion(Number(e.key)); return; }   // Motion level
       if (e.code !== 'Space') return;
@@ -217,7 +205,6 @@ boot().then((stats) => {
     loop.setPaused(pending.paused);
     if (pending.pointer) window.wallSetPointer(...pending.pointer);
     loop.start();
-    if (pending.water) window.wallWater();
   }
   if (DEBUG) {
     const panel = Object.assign(document.createElement('div'), { id: 'debug' });

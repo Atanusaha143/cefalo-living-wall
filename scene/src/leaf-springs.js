@@ -68,8 +68,6 @@ export function createSprings(leaves, options = {}) {
     pointerOut() { Object.assign(pointer, { inside: false, vx: 0, vy: 0, t: null }); },
     /** Scale the cursor's bend and flick (the Motion setting's strength). */
     setStrength(s) { strength = s; },
-    /** Add angular velocity (degrees per substep) to one leaf, e.g. the mist's lift. */
-    impulse(i, degrees) { vel[i] += degrees; active.add(i); },
     /** Keep a leaf bent by `degrees` (e.g. under a resting butterfly); 0 releases it. */
     setHold(i, degrees) { hold[i] = degrees; active.add(i); },
     step(dt) {

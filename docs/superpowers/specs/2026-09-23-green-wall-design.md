@@ -200,7 +200,7 @@ on the leaves around them (logo mask dilated and blurred). The letters themselve
   - the logo box (+40 margin) repels flight paths and is never a landing target;
   - landing targets are front leaves only, outside the logo box and away from the display edges.
 
-### 4.8 Mist (Water)
+### 4.8 Mist (Water) — removed 2026-09-25, see §13
 
 - `wallWater()` releases fine mist particles from the ceiling line across the full width for ~6 s;
   they fall and fade before the pebbles.
@@ -461,4 +461,12 @@ menu bar. The user approved a before/after preview of each fix.
 | **Wide screens crop from the bottom** (the user chose the "less top crop" preview for the external monitor) | Cover fit anchored 10 % from the top (was 30 %); tested against the user's two screens and their menu bars (34 pt built-in, 30 pt on the 1080p monitor) |
 | Desktop still | Reinstalling copies the new photo over `still.jpg` at the same path; checked on the user's Mac that macOS then shows the new picture (no renamed file needed) |
 | Shader constants from `wall.js` | The photo shader's ceiling line, pebble line and logo box are generated from `wall.js` instead of repeated, so they cannot drift apart again |
+
+## 13. Water removed (2026-09-25)
+
+The user found the mist a one-time novelty that looks more like snow than water, and asked to remove the
+feature and nothing else. Removed: the menu's **Water** item, the `wallWater()` bridge call, the mist particles
+(`scene/src/mist.js`), the leaves' one-time lift (and the spring `impulse()` only it used), click-to-water and
+`?water=` in the browser. Kept: the leaves' wet look in `leaves.js` (gloss and darker colour), now always dry,
+for the planned Rain feature.
 

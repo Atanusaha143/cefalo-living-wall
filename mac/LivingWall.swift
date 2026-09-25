@@ -115,11 +115,6 @@ final class Wallpaper: NSObject, WKNavigationDelegate {
     view.evaluateJavaScript("wallSetMaxFps(\(max(rate, 0))); wallSetPaused(\(paused)); wallSetMotion(\(motion))")
   }
 
-  func water() {
-    guard loaded, rate > 0, !paused else { return }
-    view.evaluateJavaScript("wallWater()")
-  }
-
   /// Cursor position in this window's top-left coordinates, or nil when it is not over
   /// this screen's visible desktop.
   func setPointer(_ point: NSPoint?) {
@@ -280,7 +275,6 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private var coverageTimer: Timer?
   private var status: NSStatusItem?
   private let state = NSMenuItem()
-  private let waterItem = NSMenuItem(title: "Water", action: #selector(water), keyEquivalent: "")
   private let pauseItem = NSMenuItem(title: "Pause", action: #selector(togglePause), keyEquivalent: "")
   private var motionItems: [NSMenuItem] = []
   private let screenSaverItem = NSMenuItem(
@@ -473,10 +467,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     state.isEnabled = false
     menu.addItem(state)
     menu.addItem(.separator())
-    for entry in [waterItem, pauseItem] {
-      entry.target = self
-      menu.addItem(entry)
-    }
+    pauseItem.target = self
+    menu.addItem(pauseItem)
     let levels = NSMenu(title: "Motion")
     levels.autoenablesItems = false
     for (index, name) in motionNames.enumerated() {
@@ -505,10 +497,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     for item in motionItems { item.state = item.tag == motion ? .on : .off }
     pauseItem.title = paused ? "Resume" : "Pause"
     pauseItem.isEnabled = true
-    waterItem.isEnabled = !paused && applied > 0
   }
-
-  @objc private func water() { for screen in screens { screen.water() } }
 
   @objc private func chooseMotion(_ sender: NSMenuItem) {
     motion = sender.tag
