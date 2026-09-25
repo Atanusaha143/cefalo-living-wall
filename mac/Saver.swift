@@ -17,10 +17,10 @@ func slog(_ message: String) { saverLog.log("\(message, privacy: .public)") }
 enum SaverSession {
   private(set) static var running = false
   static let changed = Notification.Name("LivingWallSaverSessionChanged")
-  /// A new Motion level from the Options sheet (in-process; userInfo["level"]).
-  static let motionChanged = Notification.Name("LivingWallSaverMotionChanged")
-  /// The Options sheet's broadcast to every saver host; the level is the object.
-  static let motionBroadcast = "local.cefalo-living-wall.saver.motion"
+  /// New settings from the Options sheet (in-process; userInfo["motion"] Int, ["rain"] Int mode).
+  static let optionsChanged = Notification.Name("LivingWallSaverOptionsChanged")
+  /// The Options sheet's broadcast to every saver host; its object is optionsBroadcast(motion:rain:).
+  static let broadcastName = "local.cefalo-living-wall.saver.options"
   private static var observing = false
 
   static func observe() {
@@ -38,10 +38,10 @@ enum SaverSession {
         NotificationCenter.default.post(name: changed, object: nil)
       }
     }
-    _ = DistributedNotificationCenter.default().addObserver(forName: .init(motionBroadcast), object: nil, queue: .main) { note in
-      guard let level = motionFromBroadcast(note.object as? String) else { return }
-      slog("motion changed to \(level) by Options")
-      NotificationCenter.default.post(name: motionChanged, object: nil, userInfo: ["level": level])
+    _ = DistributedNotificationCenter.default().addObserver(forName: .init(broadcastName), object: nil, queue: .main) { note in
+      guard let options = optionsFromBroadcast(note.object as? String) else { return }
+      slog("options changed to motion \(options.motion), rain \(options.rain) by Options")
+      NotificationCenter.default.post(name: optionsChanged, object: nil, userInfo: ["motion": options.motion, "rain": options.rain])
     }
   }
 }
@@ -52,46 +52,57 @@ final class OptionsSheet: NSObject {
   private(set) static var current: OptionsSheet?
   let window: NSWindow
   private let popup: NSPopUpButton
+  private let rainPopup: NSPopUpButton
 
   static func show() -> NSWindow {
     if let current { return current.window }   // the host may ask more than once
     let sheet = OptionsSheet()
     current = sheet
-    slog("options sheet shown (motion \(SaverSettings.shared.motion))")
+    slog("options sheet shown (motion \(SaverSettings.shared.motion), rain \(SaverSettings.shared.rain))")
     return sheet.window
   }
 
   private override init() {
-    window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: 150), styleMask: [.titled], backing: .buffered, defer: false)
-    popup = NSPopUpButton(frame: NSRect(x: 90, y: 97, width: 190, height: 28), pullsDown: false)
+    window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: 196), styleMask: [.titled], backing: .buffered, defer: false)
+    popup = NSPopUpButton(frame: NSRect(x: 90, y: 143, width: 190, height: 28), pullsDown: false)
+    rainPopup = NSPopUpButton(frame: NSRect(x: 90, y: 79, width: 190, height: 28), pullsDown: false)
     super.init()
     window.title = "Cefalo Living Wall"
-    let content = NSView(frame: NSRect(x: 0, y: 0, width: 360, height: 150))
+    let content = NSView(frame: NSRect(x: 0, y: 0, width: 360, height: 196))
     let label = NSTextField(labelWithString: "Motion:")
-    label.frame = NSRect(x: 20, y: 102, width: 70, height: 20)
+    label.frame = NSRect(x: 20, y: 148, width: 70, height: 20)
     popup.addItems(withTitles: motionNames)
     popup.selectItem(at: SaverSettings.shared.motion - 1)
     let hint = NSTextField(labelWithString: "How fast and how far the leaves move.")
-    hint.frame = NSRect(x: 20, y: 66, width: 320, height: 20)
+    hint.frame = NSRect(x: 20, y: 118, width: 320, height: 20)
     hint.textColor = .secondaryLabelColor
+    let rainLabel = NSTextField(labelWithString: "Rain:")
+    rainLabel.frame = NSRect(x: 20, y: 84, width: 70, height: 20)
+    rainPopup.addItems(withTitles: rainNames)
+    rainPopup.selectItem(at: SaverSettings.shared.rain)
+    let rainHint = NSTextField(labelWithString: "Rain falling in front of the wall.")
+    rainHint.frame = NSRect(x: 20, y: 56, width: 320, height: 20)
+    rainHint.textColor = .secondaryLabelColor
     let cancel = NSButton(title: "Cancel", target: self, action: #selector(cancel))
     cancel.frame = NSRect(x: 168, y: 16, width: 84, height: 30)
     cancel.keyEquivalent = "\u{1b}"
     let done = NSButton(title: "Done", target: self, action: #selector(save))
     done.frame = NSRect(x: 256, y: 16, width: 84, height: 30)
     done.keyEquivalent = "\r"
-    for view in [label, popup, hint, cancel, done] { content.addSubview(view) }
+    for view in [label, popup, hint, rainLabel, rainPopup, rainHint, cancel, done] { content.addSubview(view) }
     window.contentView = content
   }
 
   @objc private func save() {
-    let level = motionLevel(stored: popup.indexOfSelectedItem + 1)
+    let level = motionLevel(stored: popup.indexOfSelectedItem + 1), rain = rainMode(stored: rainPopup.indexOfSelectedItem)
     SaverSettings.shared.motion = level
-    slog("options saved: motion \(level)")
+    SaverSettings.shared.rain = rain
+    slog("options saved: motion \(level), rain \(rain)")
     // This process's views, and every other saver host (the thumbnail may live elsewhere).
-    NotificationCenter.default.post(name: SaverSession.motionChanged, object: nil, userInfo: ["level": level])
+    NotificationCenter.default.post(name: SaverSession.optionsChanged, object: nil, userInfo: ["motion": level, "rain": rain])
     DistributedNotificationCenter.default().postNotificationName(
-      .init(SaverSession.motionBroadcast), object: "\(level)", userInfo: nil, deliverImmediately: true)
+      .init(SaverSession.broadcastName), object: optionsBroadcast(motion: level, rain: rain), userInfo: nil,
+      deliverImmediately: true)
     close()
   }
 
@@ -133,7 +144,7 @@ final class LivingWallSaverView: ScreenSaverView {
     animationTimeInterval = 1   // the page animates itself; animateOneFrame stays empty
     SaverSession.observe()
     NotificationCenter.default.addObserver(self, selector: #selector(sessionChanged), name: SaverSession.changed, object: nil)
-    NotificationCenter.default.addObserver(self, selector: #selector(motionChanged), name: SaverSession.motionChanged, object: nil)
+    NotificationCenter.default.addObserver(self, selector: #selector(optionsChanged), name: SaverSession.optionsChanged, object: nil)
     slog("started preview \(isPreview) frame \(frame) host \(ProcessInfo.processInfo.processName)")
     load()
   }
@@ -143,7 +154,8 @@ final class LivingWallSaverView: ScreenSaverView {
     messages.handler = { [weak self] message in self?.received(message) }
     addSubview(view)
     web = view
-    view.load(URLRequest(url: sceneURL("motion=\(SaverSettings.shared.motion)")))
+    let settings = SaverSettings.shared
+    view.load(URLRequest(url: sceneURL("motion=\(settings.motion)&rain=\(settings.rain)")))
     readyTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: false) { [weak self] _ in
       guard let self, !self.ready else { return }
       slog("the scene was not ready within 15 s; showing the still photo")
@@ -157,7 +169,8 @@ final class LivingWallSaverView: ScreenSaverView {
       ready = true
       readyTimer?.invalidate()
       slog("ready preview \(isPreview) \(visibility)")
-      send("wallSetMaxFps(\(isPreview ? 15 : 30)); wallSetMotion(\(SaverSettings.shared.motion))")
+      let settings = SaverSettings.shared
+      send("wallSetMaxFps(\(isPreview ? 15 : 30)); wallSetMotion(\(settings.motion)); wallSetRain(\(settings.rain))")
       refresh()
     case "failed":
       slog("the scene failed: \(message["reason"] ?? "unknown")")
@@ -184,9 +197,9 @@ final class LivingWallSaverView: ScreenSaverView {
 
   @objc private func sessionChanged() { refresh() }
 
-  @objc private func motionChanged(_ note: Notification) {
-    guard let level = note.userInfo?["level"] as? Int else { return }
-    send("wallSetMotion(\(level))")
+  @objc private func optionsChanged(_ note: Notification) {
+    guard let level = note.userInfo?["motion"] as? Int, let rain = note.userInfo?["rain"] as? Int else { return }
+    send("wallSetMotion(\(level)); wallSetRain(\(rain))")
   }
 
   // macOS 26 calls these for pre-warmed copies too, so they only inform the log.

@@ -30,3 +30,12 @@ test('the cursor ripple fades within a second or two', () => {
   layer.update(7, noGust);
   assert.ok(layer.mesh.material.uniforms.uRipple.value < 0.1);
 });
+
+test('rain turns the photo overcast', () => {
+  const layer = createPhotoLayer(new THREE.Texture(), createRandom(1));
+  const noGust = { start: -1e4, strength: 0 };
+  layer.update(1, noGust, 1, 0.6);
+  assert.equal(layer.mesh.material.uniforms.uOvercast.value, 0.6);
+  layer.update(2, noGust);
+  assert.equal(layer.mesh.material.uniforms.uOvercast.value, 0, 'clear by default');
+});

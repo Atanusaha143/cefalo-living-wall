@@ -1,8 +1,8 @@
 # Cefalo Living Wall
 
 The Cefalo green wall as a live macOS desktop wallpaper and screen saver. The leaves
-sway in the breeze, gusts roll across the wall, leaves bend away from your cursor, and
-butterflies drop by now and then.
+sway in the breeze, gusts roll across the wall, leaves bend away from your cursor,
+butterflies drop by now and then, and it can rain.
 
 It is the real photo with a layer of 3D leaves in front, rendered with Three.js in a
 web view that sits behind your desktop icons. Everything runs locally and offline.
@@ -32,6 +32,12 @@ choice, Motion level and remembered original wallpaper carry over.
 Click the leaf in the menu bar:
 
 - **Pause / Resume** stops or starts the animation, and is remembered.
+- **Rain** makes it rain in front of the wall on every display: **Drizzle**, **Steady** or
+  **Monsoon**, or **Off**. It builds up and swells and eases on its own. A drizzle is a fine
+  veil drifting in the air, and the roof's edge only drips; steady rain and a monsoon pour off
+  the roof, knock and shake the leaves and lean together in the gusts, and a monsoon greys the
+  view behind a veil. The leaves turn glossy and a mist dims the scene; they dry about a minute
+  after it stops. Remembered, and Off until you choose a mode.
 - **Motion** sets how fast and how far the leaves move: Calm, Gentle, Lively, Energetic
   (the default) or Wild. It applies to every display and is remembered.
 - **Screen Saver Settings…** opens System Settings on the Screen Saver page.
@@ -47,7 +53,7 @@ The first time the app starts it offers to open Screen Saver settings: choose
 than one display, macOS keeps a choice per display: pick the display at the top of that
 page and choose it for each one. It plays the living wall while the screen saver runs,
 and the wallpaper underneath rests meanwhile. **Options…** next to it sets its own Motion
-level (Energetic by default). Between runs nothing draws.
+level (Energetic by default) and its own Rain mode (Off by default). Between runs nothing draws.
 
 On macOS 26 the lock screen itself shows a still picture rather than the live screen
 saver: macOS only uses still frames of third-party screen savers there.
@@ -105,8 +111,9 @@ npm run test:photo   # the maths that prepares the photo
 ```
 
 In the browser: move the pointer over the leaves, Space to pause, keys 1–5 to pick the
-Motion level. Add `?debug` for frame rate and frame time, `?t=12` to freeze at 12 s,
-`?seed=3` for a different wall, and `?motion=1`…`5` to start at a Motion level.
+Motion level, R to step through the rain modes. Add `?debug` for frame rate and frame time,
+`?t=12` to freeze at 12 s, `?seed=3` for a different wall, `?motion=1`…`5` to start at a
+Motion level, and `?rain=1`…`3` to start it raining (Drizzle, Steady, Monsoon).
 
 The photo the scene uses, `scene/assets/wall.jpg`, is made from the original
 `assets-src/green-wall.jpg` by `npm run photo`: it scales it to 3840×2560, levels the

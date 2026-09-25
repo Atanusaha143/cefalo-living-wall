@@ -75,9 +75,14 @@ enum HostLogicTest {
     check(!screenSaverSession(after: "com.apple.screensaver.didstop", running: true), "did stop ends it")
     check(screenSaverSession(after: "com.apple.screensaver.willstop", running: true), "will stop changes nothing (macOS 26 also sends it at start)")
     // The Options sheet broadcasts the new level to every saver host as the notification's object.
-    check(motionFromBroadcast("2") == 2, "a broadcast level is read")
-    check(motionFromBroadcast("9") == 5 && motionFromBroadcast("0") == 1, "a broadcast level is clamped")
-    check(motionFromBroadcast(nil) == nil && motionFromBroadcast("fast") == nil, "a broadcast without a level is ignored")
+    check(rainNames == ["Off", "Drizzle", "Steady", "Monsoon"], "Rain: Off and three modes, lightest first")
+    check(rainMode(stored: nil) == 0 && rainMode(stored: 2) == 2, "no rain until a mode is chosen; a stored mode is used")
+    check(rainMode(stored: 7) == 3 && rainMode(stored: -1) == 0, "a stored mode out of range is clamped")
+    let read = { (object: String?) in optionsFromBroadcast(object).map { "\($0.motion) \($0.rain)" } }
+    check(read("2,1") == "2 1" && read("4,0") == "4 0" && read("1,3") == "1 3", "Options' broadcast carries the Motion level and the Rain mode")
+    check(read("9,0") == "5 0" && read("0,2") == "1 2", "a broadcast level is clamped")
+    check([nil, "", "fast", "3", "3,4", "3,-1", "3,1,1", ",1", "3,"].allSatisfy { read($0) == nil }, "a malformed broadcast is ignored")
+    check(read(optionsBroadcast(motion: 2, rain: 3)) == "2 3", "what Options sends is what every host reads")
 
     // A host macOS starts *for* a run appears after "did start": it must still know.
     check(screenSaverSessionAtLaunch(runningApps: ["com.apple.finder", "com.apple.ScreenSaver.Engine"]),

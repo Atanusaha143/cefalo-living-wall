@@ -70,6 +70,8 @@ export function createSprings(leaves, options = {}) {
     setStrength(s) { strength = s; },
     /** Keep a leaf bent by `degrees` (e.g. under a resting butterfly); 0 releases it. */
     setHold(i, degrees) { hold[i] = degrees; active.add(i); },
+    /** A raindrop's knock: angular velocity (degrees per substep) given to leaf i. */
+    knock(i, degrees) { vel[i] += degrees; active.add(i); },
     step(dt) {
       carry += Math.min(dt, 0.25);
       while (carry >= P.step) { carry -= P.step; substep(); }

@@ -22,6 +22,12 @@ export const WIND_GLSL = /* glsl */ `
   float gustAt(float x, float delay) { return uGustStrength * gustProfile(uTime - uGustStart - x / 1600.0 * 2.4 - delay); }
 `;
 
+// Rain's overcast: up to 12 % darker and a little cooler. Shared with leaves.js.
+export const OVERCAST_GLSL = /* glsl */ `
+  uniform float uOvercast;
+  vec3 overcast(vec3 colour) { return colour * mix(vec3(1.0), vec3(0.86, 0.88, 0.94), uOvercast); }
+`;
+
 // Blue channel (linear) that marks the white logo letters; foliage has little blue.
 export const LOGO_GLSL = /* glsl */ `
   uniform sampler2D uPhoto;
@@ -50,6 +56,7 @@ export function createPhotoLayer(photo, random) {
     uPhoto: { value: photo }, uNoise: { value: noiseTexture(random) },
     uTime: { value: 0 }, uGustStart: { value: -1e4 }, uGustStrength: { value: 0 },
     uPointer: { value: new THREE.Vector2(-1e4, -1e4) }, uRipple: { value: 0 }, uStrength: { value: 1 },
+    uOvercast: { value: 0 },
   };
   const material = new THREE.ShaderMaterial({
     uniforms, depthTest: false, depthWrite: false,
@@ -63,6 +70,7 @@ export function createPhotoLayer(photo, random) {
     fragmentShader: /* glsl */ `
       ${WIND_GLSL}
       ${LOGO_GLSL}
+      ${OVERCAST_GLSL}
       uniform sampler2D uNoise;
       uniform vec2 uPointer;
       uniform float uRipple, uStrength;
@@ -94,6 +102,7 @@ export function createPhotoLayer(photo, random) {
           offset *= free;
         }
         gl_FragColor = texture2D(uPhoto, uvOf(p + offset));
+        gl_FragColor.rgb = overcast(gl_FragColor.rgb);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }`,
@@ -106,8 +115,10 @@ export function createPhotoLayer(photo, random) {
     mesh,
     /** The cursor moved over the wall at (x, y), time t. */
     poke(x, y, t) { uniforms.uPointer.value.set(x, y); pokedAt = t; },
-    /** t: wind time; strength: the Motion setting's (the shimmer is capped near Energetic so the photo never smears). */
-    update(t, gust, strength = 1) {
+    /** t: wind time; strength: the Motion setting's (the shimmer is capped near Energetic so the photo never smears);
+     *  overcast: rain's dimming, 0..1. */
+    update(t, gust, strength = 1, overcast = 0) {
+      uniforms.uOvercast.value = overcast;
       uniforms.uStrength.value = Math.min(strength, 1.3);
       const { time, gustStart } = shaderTime(t, gust);
       uniforms.uTime.value = time;

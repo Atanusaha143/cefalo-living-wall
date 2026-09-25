@@ -12,6 +12,8 @@ import { createLeaves } from './leaves.js';
 import { createLights } from './lights.js';
 import { createLogoGlow } from './logo-glow.js';
 import { createButterflies } from './butterflies.js';
+import { createRainWeather, stormBoost, knockCount, impact } from './rain-weather.js';
+import { createRain } from './rain.js';
 import { createMotionClock, DEFAULT_MOTION } from './motion.js';
 
 const params = new URLSearchParams(location.search);
@@ -25,13 +27,16 @@ const DIP = 4;          // degrees a leaf dips under a resting butterfly
 // The bridge. The host (or browser input) may call these before the scene is ready;
 // until then the latest values wait in `pending`.
 let live = null;
-const pending = { pointer: null, paused: false, maxFps: 30, motion: params.get('motion') ?? DEFAULT_MOTION };
+// Rain modes: 0 Off, 1 Drizzle, 2 Steady, 3 Monsoon (true and false, from older hosts, mean Steady and Off).
+const rainMode = (v) => (v === true ? 2 : Math.min(3, Math.max(0, Math.round(Number(v) || 0))));
+const pending = { pointer: null, paused: false, maxFps: 30, motion: params.get('motion') ?? DEFAULT_MOTION, rain: rainMode(params.get('rain')) };
 Object.assign(window, {
   wallSetPointer: (x, y) => (live ? live.pointer(x, y) : (pending.pointer = [x, y])),
   wallPointerOut: () => (live ? live.pointerOut() : (pending.pointer = null)),
   wallSetPaused: (paused) => (live ? live.setPaused(paused) : (pending.paused = Boolean(paused))),
   wallSetMaxFps: (fps) => (live ? live.setMaxFps(fps) : (pending.maxFps = fps)),
   wallSetMotion: (level) => (live ? live.setMotion(level) : (pending.motion = level)),
+  wallSetRain: (mode) => (live ? live.setRain(rainMode(mode)) : (pending.rain = rainMode(mode))),
 });
 
 /** The photo drawn small, for sampling leaf colours. */
@@ -46,6 +51,7 @@ function photoPixels(image, width = 400) {
 if (SMOKE) {
   window.wallSetMaxFps(15); window.wallSetPaused(false);
   window.wallSetPointer(100, 100); window.wallPointerOut(); window.wallSetMotion(DEFAULT_MOTION);
+  window.wallSetRain(pending.rain);
 }
 
 const loadTexture = (url) => new Promise((resolve, reject) => {
@@ -71,12 +77,15 @@ async function boot() {
   const lights = createLights(random);
   const glow = createLogoGlow(photo);
   const butterflies = createButterflies();
+  const weather = createRainWeather(createRandom(SEED + 2));
+  const rain = createRain(createRandom(SEED + 3));
+  const drops = createRandom(SEED + 4);   // which leaves the raindrops knock
   const brain = createButterflyBrain({
     random: createRandom(SEED + 1),
     perches: leafData.map((l, index) => ({ index, x: l.midX, y: l.midY })),
     perchPosition: (i) => leaves.midpoint(i),
   });
-  world.add(photoLayer.mesh, leaves.group, butterflies.group, lights.group, glow.mesh);
+  world.add(photoLayer.mesh, leaves.group, butterflies.group, lights.group, glow.mesh, rain.group);
 
   let fit = coverFit(innerWidth, innerHeight), pxPerUnit = 1;
   function resize() {
@@ -89,6 +98,7 @@ async function boot() {
   resize();
   addEventListener('resize', resize);
 
+  let now = { level: 0, wet: 0, overcast: 0 };   // this frame's weather
   let simTime = 0, cpuMs = 0, frameMs = 0, measure = false, drawn = 0, pointer = null, pointerCalls = 0;
   const onePixel = new Uint8Array(4);
   const held = new Map();                          // leaf index -> resting butterfly id
@@ -101,14 +111,27 @@ async function boot() {
   }
   function simulate(dt, t) {
     simTime = t;
-    const windTime = clock.advance(dt), { strength } = clock.level;
+    now = weather.at(t);
+    // The rain brings wind: it runs the wind's clock faster and sways the leaves harder.
+    const storm = stormBoost(now.level);
+    const windTime = clock.advance(dt * storm.speed), { strength } = clock.level;
+    const sway = Math.min(2.2, strength * storm.strength);
     const gust = wind.current(windTime);
-    springs.setStrength(strength);
+    springs.setStrength(strength);   // the cursor's pull stays the Motion level's
+    // Raindrops knock leaves down and make them tremble, more the harder they hit (a drizzle's
+    // fine drops not at all); the springs bring them back.
+    const hit = impact(now);
+    for (let k = knockCount(hit, dt, drops); k > 0; k--) {
+      const i = drops.int(0, leafData.length - 1);
+      springs.knock(i, drops.range(0.6, 1.8) * Math.sign(leafData[i].angle || 1));
+    }
     springs.step(dt);
-    leaves.update(windTime, gust, 0, strength);   // 0: the leaves are dry
+    leaves.update(windTime, gust, now.wet, sway, now.overcast, hit);
+    brain.setRaining(now.level > 0);
     brain.tick(dt, pointer);
     holdPerches();
-    photoLayer.update(windTime, gust, strength);
+    photoLayer.update(windTime, gust, sway, now.overcast);
+    rain.update(t, windTime, gust, now, sway, pxPerUnit, dt);
     lights.update(t, pxPerUnit);
     glow.update(t);
   }
@@ -142,12 +165,13 @@ async function boot() {
     setPaused: (paused) => loop.setPaused(paused),
     setMaxFps: (fps) => loop.setMaxFps(fps),
     setMotion: (level) => clock.set(level),
+    setRain: (mode) => weather.setMode(mode, simTime),
   };
   // What the scene is doing, for the host's diagnostics dump (kill -USR1) and the smoke test.
   window.wallState = () => ({
     drawn, running: loop.running, maxFps: loop.maxFps, simTime: +simTime.toFixed(2), cpuMs: +cpuMs.toFixed(2),
     pointerCalls, pointer, bentLeaves: springs.activeCount, butterflies: brain.flyers.length,
-    motion: clock.level.level,
+    motion: clock.level.level, rain: { mode: weather.mode, level: +now.level.toFixed(2) },
     view: [innerWidth, innerHeight, devicePixelRatio], fit,
   });
   /** Run the simulation from 0 to t without drawing, so a frozen frame shows what t would. */
@@ -170,10 +194,10 @@ function smokeReport(renderer) {
   }
   const mean = lum.reduce((a, b) => a + b, 0) / lum.length;
   const sd = Math.sqrt(lum.reduce((a, b) => a + (b - mean) ** 2, 0) / lum.length);
-  const bridge = ['wallSetPointer', 'wallPointerOut', 'wallSetPaused', 'wallSetMaxFps', 'wallSetMotion'].every((f) => typeof window[f] === 'function');
+  const bridge = ['wallSetPointer', 'wallPointerOut', 'wallSetPaused', 'wallSetMaxFps', 'wallSetMotion', 'wallSetRain'].every((f) => typeof window[f] === 'function');
   const diagnostics = typeof window.wallState === 'function' && window.wallState().drawn >= 1;
-  const motion = diagnostics ? window.wallState().motion : null;
-  console.log(`SMOKE ${JSON.stringify({ webgl2: gl instanceof WebGL2RenderingContext, bridge, diagnostics, motion, mean, sd, nonBlank: mean > 0.03 && mean < 0.95 && sd > 0.02 })}`);
+  const motion = diagnostics ? window.wallState().motion : null, rain = diagnostics ? window.wallState().rain : null;
+  console.log(`SMOKE ${JSON.stringify({ webgl2: gl instanceof WebGL2RenderingContext, bridge, diagnostics, motion, rain, mean, sd, nonBlank: mean > 0.03 && mean < 0.95 && sd > 0.02 })}`);
 }
 
 boot().then((stats) => {
@@ -184,6 +208,7 @@ boot().then((stats) => {
     document.documentElement.addEventListener('pointerleave', () => window.wallPointerOut());
     addEventListener('keydown', (e) => {
       if (/^[1-5]$/.test(e.key)) { window.wallSetMotion(Number(e.key)); return; }   // Motion level
+      if (e.key === 'r' || e.key === 'R') { pending.rain = (pending.rain + 1) % 4; window.wallSetRain(pending.rain); return; }   // Off → Drizzle → Steady → Monsoon
       if (e.code !== 'Space') return;
       e.preventDefault();
       pending.paused = !pending.paused;
@@ -192,6 +217,7 @@ boot().then((stats) => {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) pending.paused = true;
   }
   document.addEventListener('visibilitychange', () => loop.setHidden(document.hidden));
+  if (pending.rain) window.wallSetRain(pending.rain);   // before a frozen frame fast-forwards
   if (FREEZE !== null) {
     // Frozen at one instant (?t=): keep redrawing it, so screenshots always have a frame.
     loop.setPaused(true);

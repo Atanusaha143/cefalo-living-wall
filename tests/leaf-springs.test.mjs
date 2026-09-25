@@ -105,3 +105,13 @@ test('reports which leaves changed', () => {
   s.step(1 / 60);
   assert.deepEqual(s.takeDirty(), [0]);
 });
+
+test('a raindrop knocks a leaf one way, and it springs back', () => {
+  const s = createSprings(upright());
+  s.knock(0, 2);
+  run(s, 0.1);
+  assert.ok(s.angle[0] > 3, `knocked to ${s.angle[0]}`);
+  run(s, 3);
+  assert.equal(s.angle[0], 0, 'back at rest');
+  assert.equal(s.activeCount, 0, 'and no longer simulated');
+});

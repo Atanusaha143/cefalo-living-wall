@@ -1,4 +1,4 @@
-// Checks that a Motion level saved in the screen saver's Options sheet is really stored:
+// Checks that the Motion level and Rain mode saved in the screen saver's Options sheet are really stored:
 // another process must read it back, as a newly started screen-saver host does. A plain
 // program: swiftc -parse-as-library mac/HostLogic.swift mac/SaverSettings.swift
 // mac/tests/saver-settings-test.swift -framework ScreenSaver
@@ -15,7 +15,7 @@ enum SaverSettingsTest {
     if !ok { failures += 1 }
   }
 
-  /// The Motion level a separate process reads (this program, run with --read).
+  /// "<motion> <rain>" as a separate process reads them (this program, run with --read).
   static func readInAnotherProcess() -> String {
     let child = Process()
     child.executableURL = Bundle.main.executableURL
@@ -46,15 +46,18 @@ enum SaverSettingsTest {
   static func main() {
     let settings = SaverSettings(module: module)
     if CommandLine.arguments.dropFirst().first == "--read" {
-      print(settings.motion)
+      print("\(settings.motion) \(settings.rain)")
       return
     }
     removeStored()
-    check(readInAnotherProcess() == "4", "Energetic until Options saves a level")
+    check(readInAnotherProcess() == "4 0", "Energetic and dry until Options saves something")
     settings.motion = 1
-    check(readInAnotherProcess() == "1", "Calm saved in Options is what a newly started screen-saver host reads")
+    check(readInAnotherProcess() == "1 0", "Calm saved in Options is what a newly started screen-saver host reads")
+    settings.rain = 3
+    check(readInAnotherProcess() == "1 3", "so is a Monsoon, without touching Motion")
     settings.motion = 5
-    check(readInAnotherProcess() == "5", "and a later choice replaces it")
+    settings.rain = 0
+    check(readInAnotherProcess() == "5 0", "and later choices replace them")
     removeStored()
     exit(failures == 0 ? 0 : 1)
   }

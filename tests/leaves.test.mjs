@@ -72,3 +72,24 @@ test('a positive bend moves the midpoint the way the layout says', () => {
   const moved = (after.x - before.x) * data[7].ux + (after.y - before.y) * data[7].uy;
   assert.ok(moved > 2, `moved ${moved} along u`);
 });
+
+test('rain wets and darkens the leaves: wet and overcast reach every leaf layer', () => {
+  const { leaves } = setup();
+  leaves.update(0, noGust, 0.7, 1, 0.4);
+  const [shadow, , blades] = leaves.group.children;
+  for (const mesh of [shadow, blades]) {
+    assert.equal(mesh.material.uniforms.uWet.value, 0.7);
+    assert.equal(mesh.material.uniforms.uOvercast.value, 0.4);
+  }
+  leaves.update(1, noGust);
+  assert.deepEqual([blades.material.uniforms.uWet.value, blades.material.uniforms.uOvercast.value], [0, 0], 'dry and clear by default');
+});
+
+test('rain pelts the leaves: how hard it rains reaches every leaf layer, and nothing trembles when dry', () => {
+  const { leaves } = setup();
+  leaves.update(0, noGust, 1, 1, 1, 0.8);
+  const [shadow, , blades] = leaves.group.children;
+  for (const mesh of [shadow, blades]) assert.equal(mesh.material.uniforms.uPelt.value, 0.8);
+  leaves.update(1, noGust);
+  assert.equal(blades.material.uniforms.uPelt.value, 0, 'dry by default');
+});

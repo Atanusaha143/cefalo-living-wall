@@ -28,7 +28,7 @@ export function createButterflyBrain({ random, perches, perchPosition = (i) => p
   const B = BUTTERFLY;
   let clock = 0, nextId = 1;
   let nextVisit = random.range(...B.firstVisit);
-  let visit = null;
+  let visit = null, raining = false;
   const flyers = [];
   const log = { visits: [], landings: [] };
   const usable = perches.filter((p) => isPerch(p.x, p.y));
@@ -157,10 +157,18 @@ export function createButterflyBrain({ random, perches, perchPosition = (i) => p
     flyers,
     log,
     get time() { return clock; },
+    /** Rain sends every butterfly home and keeps new ones away; after it, the next visit
+     *  comes after the usual gap. */
+    setRaining(on) {
+      if (Boolean(on) === raining) return;
+      raining = Boolean(on);
+      if (raining) for (const b of flyers) { b.state = 'exiting'; b.perch = null; }
+      else nextVisit = Math.max(nextVisit, clock + random.range(...B.gap));
+    },
     /** Advance by dt seconds. pointer: { x, y, inside } in wall units, or null. */
     tick(dt, pointer = null) {
       clock += dt;
-      if (!visit && clock >= nextVisit) startVisit();
+      if (!visit && !raining && clock >= nextVisit) startVisit();
       if (pointer?.inside) flee(pointer);
       if (visit && clock - visit.start > B.maxVisit) {
         for (const b of flyers) if (b.state !== 'exiting') { b.state = 'exiting'; b.perch = null; }

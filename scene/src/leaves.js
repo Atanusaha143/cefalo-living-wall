@@ -2,7 +2,7 @@ import * as THREE from '../vendor/three.module.js';
 import { WALL_W, WALL_H, LIGHTS } from './wall.js';
 import { swayAt, gustAt, shaderTime } from './wind.js';
 import { leafColour } from './leaf-colour.js';
-import { WIND_GLSL } from './photo-layer.js';
+import { WIND_GLSL, OVERCAST_GLSL } from './photo-layer.js';
 
 const PETIOLE = 6, BLADE = 38;   // matches LEAF_LENGTH (44) in leaf-layout.js
 const SEGMENTS = 10;
@@ -36,6 +36,7 @@ const VERTEX = /* glsl */ `
   attribute vec4 iWind;                  // sway amplitude (deg), sway phase (s), gust amplitude (deg), gust delay (s)
   uniform vec2 uOffset;                  // shadow offset, world units
   uniform float uStrength;               // the Motion setting's strength
+  uniform float uPelt;                   // how hard it rains (0..1): the drops make every leaf tremble
   varying vec3 vColour, vNormal;
   varying vec2 vWall;
   varying float vSide, vDeep;
@@ -49,6 +50,10 @@ const VERTEX = /* glsl */ `
     vec2 local = vec2(side * halfWidth(iSize.z, s) * iSize.y, ${PETIOLE.toFixed(1)} + s * ${BLADE.toFixed(1)}) * iSize.x;
     vec3 n = normalize(vec3(-side * 0.45 * iSize.y, -0.3 * (s - 0.5), 1.0));   // midrib fold + curl
     float deg = iAngle + uStrength * (iWind.x * swayAt(iBase.x, iWind.y) + iWind.z * gustAt(iBase.x, iWind.w)) + iBend;
+    // Pelted by the rain: a fast, small shiver with this leaf's own rhythm.
+    float h = fract(sin(dot(iBase, vec2(12.9898, 78.233))) * 43758.5453);
+    deg += uPelt * (3.0 * sin(6.2831853 * (6.0 + 4.0 * h) * uTime + 40.0 * h)
+                  + 1.5 * sin(6.2831853 * (11.0 + 6.0 * h) * uTime + 90.0 * h));
     float c = cos(radians(deg)), k = sin(radians(deg));
     // Clockwise on screen, world y up: local (0, 1) -> (sin, cos).
     vec2 r = vec2(local.x * c + local.y * k, -local.x * k + local.y * c);
@@ -60,6 +65,7 @@ const VERTEX = /* glsl */ `
   }`;
 
 const FRAGMENT = /* glsl */ `
+  ${OVERCAST_GLSL}
   uniform vec3 uLights[${LIGHTS.length}];
   uniform float uWet, uShadow;
   varying vec3 vColour, vNormal;
@@ -80,7 +86,7 @@ const FRAGMENT = /* glsl */ `
     }
     float edge = smoothstep(0.6, 1.0, abs(vSide)), rib = 1.0 - smoothstep(0.0, 0.07, abs(vSide));
     vec3 albedo = vColour * mix(1.0, 0.85, uWet) * (1.0 - 0.22 * edge) + vec3(0.05, 0.07, 0.03) * rib;
-    gl_FragColor = vec4(albedo * light + spec * (1.0 - 0.6 * vDeep), 1.0);
+    gl_FragColor = vec4(overcast(albedo * light + spec * (1.0 - 0.6 * vDeep)), 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }`;
@@ -137,7 +143,7 @@ export function createLeaves(leaves, pixels, random, springs) {
     uTime: { value: 0 }, uGustStart: { value: -1e4 }, uGustStrength: { value: 0 },
     uLights: { value: LIGHTS.map(([x, y]) => new THREE.Vector3(x, -y, 60)) },
     uWet: { value: 0 }, uShadow: { value: 0 }, uOffset: { value: new THREE.Vector2(0, 0) },
-    uStrength: { value: 1 },
+    uStrength: { value: 1 }, uOvercast: { value: 0 }, uPelt: { value: 0 },
   };
   const make = (shadow, order) => {
     const material = new THREE.ShaderMaterial({
@@ -161,8 +167,11 @@ export function createLeaves(leaves, pixels, random, springs) {
   let time = 0, gust = { start: -1e4, strength: 0 }, strength = 1;
   return {
     group,
-    /** Wind time and gust for this frame, how wet the leaves look (0..1), and the Motion strength. */
-    update(t, currentGust, wet = 0, motionStrength = 1) {
+    /** Wind time and gust for this frame, how wet the leaves look (0..1), the Motion strength,
+     *  rain's overcast (0..1), and how hard it rains (0..1), which makes the leaves tremble. */
+    update(t, currentGust, wet = 0, motionStrength = 1, overcast = 0, pelt = 0) {
+      uniforms.uOvercast.value = overcast;
+      uniforms.uPelt.value = pelt;
       time = t; gust = currentGust; strength = motionStrength;
       uniforms.uStrength.value = motionStrength;
       const wrapped = shaderTime(t, gust);

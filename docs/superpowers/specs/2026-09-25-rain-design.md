@@ -199,3 +199,45 @@ README: Rain in the introduction and the menu list; the screen saver's Rain opti
 
 - 1 device px streaks may shimmer at some scales; the width may need tuning.
 - Too much rain can hide the wall; the counts and opacities above are starting points for tuning with the user.
+
+## 13. Amendments while planning (2026-09-25)
+
+Found while building the plan's code in a scratch copy; the plan implements these.
+
+| Change | Why |
+|---|---|
+| `rain.update(t, windTime, gust, weather, strength, pxPerUnit)` | The slant uses the shared wind, whose shaders need the wind's own time (the Motion clock); drops fall on simulation time |
+| The rain group is hidden while `level` is 0, even while the leaves are still wet | Nothing falls at level 0; the wet leaves are `leaves.js`'s |
+| Splashes: 120, drawn as 360 droplet sprites (three each); about 2,200 quads in all | Each droplet hops on its own path |
+| Render order: splashes 100, drips 101, streaks 102 | Streaks on top |
+| Every rain material draws both sides | Wall y runs down and world y up, which flips the quads' winding; single-sided, every streak was culled |
+| The rain has its own seeds (`SEED + 2` weather, `SEED + 3` drawing) | The shared generator also feeds the wind's gust schedule; rain must not change the dry scene |
+| `--check` sets Rain before the page loads and turns it off at the end | A display connected while it rains must rain too; turning it off must reach the page |
+| Browser: `?rain=1` starts it raining (also for frozen `?t=` frames), R toggles it | Screenshots and trying it out |
+| `--check`'s frame check loads the scene raining (`t=10&smoke&rain=1`) | Final review: dry, WebKit never compiled the rain's shaders, so a shader error there would have passed the installer; now it fails the check (shown with a deliberately broken shader) |
+
+Measured (headless Chrome, M2 Pro, 3024×1964, with the installed wall also running on both screens): while
+planning, a frame took 4.5–6.1 ms dry and 5.2–7.2 ms raining; while building, over ~20 samples each, dry had a
+median of 7.0 ms (p90 9.9, spikes to 13) and raining a median of 5.4 ms (p90 5.9, max 7.3). The spikes are the
+machine, not the rain (the dry scene is unchanged by this feature); rain stays within the 8 ms budget.
+
+## 14. User decisions during acceptance (2026-09-25)
+
+The user found the first build unrealistic ("slow, hopping dashes", too light, the wall not reacting, no wet
+atmosphere), then shared two photos of rain pouring off a roof's edge, and asked for modes like Motion.
+
+| Decision | Change |
+|---|---|
+| **Real rain speed, streaks as long as a frame's fall** | Drops fall 1,900–3,400 units/s (the wall is about 3 m, rain about 9 m/s); a streak is as long as its drop falls in one frame (`uFrameDt`, eased), so rain pours at 30 fps and at 15; the fall path has a fixed length, so a change of frame rate never moves the drops; gravity 3,500 units/s² |
+| **More rain, same look everywhere** | 4,500 streaks (far 50 %, middle 32 %, near 18 %), fainter (opacity 0.02–0.07) and soft-edged like out-of-focus rain; widths in wall units (0.7–1.4, about a point) instead of device pixels |
+| **Water pouring off the roof** (the user's photos) | The 40 drips became 22 streams along the canopy's front edge: each a glossy ribbon (longer in heavier rain) that breaks into beads released 36 times a second; gravity spreads them apart, and they vary in size, wander sideways, have a faint body, bright rims and a highlight; light rain gives a trickle, heavy rain a pour |
+| **A wet atmosphere** | A light grey mist drifts over the wall (thicker near the pebbles and under the ceiling), following the overcast; its drift completes whole turns per shader-time wrap |
+| **Three modes like Motion** (user's names) | Rain is a submenu: Off, Drizzle (base 0.3, floor 0.18, overcast 0.5), Shower (0.55, 0.3, 0.8 — the first build's rain), Monsoon (0.85, 0.7, 1.0); each swells and bursts around its base; a change of mode eases (3 s); `wallSetRain(mode)` (0–3; `true`/`false` from an older host mean Shower/Off), `wallState().rain = { mode, level }`, `?rain=0…3`, R steps through them; the app stores the mode (`rain`, 0–3) |
+| **The screen saver's Rain pop-up** | Options has a Rain pop-up (Off and the three modes) instead of the checkbox; `SaverSettings.rain` and the Options broadcast carry the mode (`"<motion>,<mode>"`) |
+| **The leaves move with the rain** ("the leaves' motion should accelerate according to the rain mode", then "still does not match the rain density") | The rain brings wind: `stormBoost(level)` runs the wind's clock up to 1.6× faster (more frequent gusts) and sways the leaves, photo and rain up to 2× harder, on top of the Motion level (combined strength capped at 2.2; the cursor's pull stays the Motion level's). The drops pelt the leaves: every leaf trembles (±3° and ±1.5° at 6–10 and 11–17 Hz, its own rhythm) in proportion to the level, and `knockCount` knocks random leaves down through their springs (`springs.knock`) at 75·level² a second — a few in a drizzle, about 60 in a monsoon; its own seed (`SEED + 4`) keeps the dry scene unchanged |
+| Downlight glow per corner | Measuring a monsoon at 3024×1964 gave a median 8.9 ms frame (over budget): the six-light glow ran per pixel of every streak. It now runs per quad corner and is blended across (`vLight`): a monsoon's median is 6.3 ms (p90 6.6, max 6.9), dry 5.9 |
+| **Shower renamed Steady; drops by mode** (the user asked for another name and for my suggestion) | Drizzle · Steady · Monsoon. Each mode sets its drops (`size`, eased like the overcast): a drizzle's fine, slow, faint specks (0.35× speed, 0.55× width, 0.8× opacity), steady rain as before, a monsoon's thicker, slightly faster drops (1.12×, 1.3×). The streaks fall on their own clock (`uFallClock`, advanced at the drops' speed), so a change of mode never moves them |
+| **Roof water reworked** ("the dew drops from the top seem very unrealistic") | No bubble-like rings and no rigid white ribbons: each stream is a thin, faint, tapering ribbon with a shimmer running down it, its length breathing smoothly; below it the water falls as motion-blurred streaks, a little thicker and brighter than the rain; streams sit unevenly along the edge and flow unevenly (thresholds 0–0.8) |
+| **Drizzle made a veil; Monsoon's glitches fixed** (the user asked whether the modes match the real vibe; I analysed the clip with the still photo subtracted and the user agreed to three fixes) | The drizzle was near-invisible specks under bright roof streams that hung like strings, and leaves knocked by drops nobody could see. Now `impact(weather)` = level × min(1, size/0.5) sets what the drops do: knocks, trembling, splashes and the roof streams' flow follow it, so a drizzle's fine drops do none of them; the wet roof edge still drips everywhere (0.2 drops/s per stream, times `wet`). A drizzle shows 2.4× as many drops for its level (`uShow`), a quarter of the speed (1.3–2.4 m/s), hairline (0.5×) and 1.5× the opacity; being light, they lean further in the same wind (tangent × 1.6, at most 33°) and drift together with the air (±8 units, a slow wave). One lean for the whole curtain (`rainLean`: the gust averaged across the wall, ×20°, plus the breeze; at most 25°) replaces the per-x slant that leaned a sharp-edged band; drops blown past one side come back in at the other, off screen. The roof water bends out in the wind and falls steeper as it speeds up (`roofPath`) and scatters more the harder it blows (`roofSpread`), instead of a rigid straight rod. A downpour greys the view: `veil(level)` adds up to 0.22 grey to the mist above level 0.6 (a monsoon's median background went from luma 50 to 84). The rain shaders no longer read the wind uniforms. Monsoon median 6.0 ms (p90 7.8), Drizzle 5.7 ms |
+| Still to do from the user's list | Splashes off knocked leaves, glints on the wet photo, a far rain curtain, lamp cones glowing in the mist |
+

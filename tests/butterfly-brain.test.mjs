@@ -85,3 +85,33 @@ test('with nowhere to land, visitors fly through and leave', () => {
   for (let t = 0; t < 400; t += DT) brain.tick(DT);
   assert.ok(brain.log.visits.length >= 1 && brain.log.landings.length === 0);
 });
+
+test('no butterfly visits while it rains', () => {
+  const brain = brainFor(7);
+  brain.setRaining(true);
+  for (let t = 0; t < 30 * 60; t += DT) {
+    brain.tick(DT);
+    assert.equal(brain.flyers.length, 0, `a butterfly came at ${t.toFixed(1)} s`);
+  }
+});
+
+test('butterflies out when the rain starts fly away', () => {
+  const brain = brainFor(7);
+  while (!brain.flyers.length) brain.tick(DT);
+  for (let t = 0; t < 10; t += DT) brain.tick(DT);   // some may have landed by now
+  brain.setRaining(true);
+  assert.ok(brain.flyers.every((b) => b.state === 'exiting' && b.perch === null));
+  for (let t = 0; t < 30 && brain.flyers.length; t += DT) brain.tick(DT);
+  assert.equal(brain.flyers.length, 0, 'all gone within 30 s');
+});
+
+test('after the rain, butterflies come back after the usual gap', () => {
+  const brain = brainFor(7);
+  brain.setRaining(true);
+  for (let t = 0; t < 10 * 60; t += DT) brain.tick(DT);
+  const stopped = brain.time;
+  brain.setRaining(false);
+  while (!brain.flyers.length) brain.tick(DT);
+  const wait = brain.time - stopped;
+  assert.ok(wait >= BUTTERFLY.gap[0] && wait <= BUTTERFLY.gap[1] + DT, `came back after ${wait.toFixed(1)} s`);
+});

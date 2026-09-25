@@ -99,9 +99,23 @@ func screenSaverSessionAtLaunch(runningApps: [String]) -> Bool {
   runningApps.contains("com.apple.ScreenSaver.Engine")
 }
 
-/// The Motion level carried by the Options sheet's broadcast (the notification's object;
-/// sandboxed senders cannot attach userInfo): clamped, or nil when there is none.
-func motionFromBroadcast(_ object: String?) -> Int? {
-  guard let object, let level = Int(object) else { return nil }
-  return motionLevel(stored: level)
+/// The Rain menu and the screen saver's Rain pop-up: Off, then the modes, lightest first.
+let rainNames = ["Off", "Drizzle", "Steady", "Monsoon"]
+
+/// The Rain mode to use: the stored choice clamped to 0 (Off)…3 (Monsoon), or Off.
+func rainMode(stored: Int?) -> Int {
+  guard let stored else { return 0 }
+  return min(rainNames.count - 1, max(0, stored))
+}
+
+/// What the screen saver's Options sheet broadcasts to every saver host, as the notification's
+/// object (sandboxed senders cannot attach userInfo): "<motion>,<rain mode>".
+func optionsBroadcast(motion: Int, rain: Int) -> String { "\(motion),\(rain)" }
+
+/// The Motion level (clamped) and Rain mode from that broadcast, or nil when it is malformed.
+func optionsFromBroadcast(_ object: String?) -> (motion: Int, rain: Int)? {
+  guard let parts = object?.split(separator: ",", omittingEmptySubsequences: false), parts.count == 2,
+    let level = Int(parts[0]), let rain = Int(parts[1]), rainNames.indices.contains(rain)
+  else { return nil }
+  return (motionLevel(stored: level), rain)
 }

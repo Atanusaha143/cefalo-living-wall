@@ -38,3 +38,20 @@ test('butterfly shadows are really drawn under the butterflies', () => {
   const firstBody = order.findIndex((m) => m.renderOrder >= 50);
   assert.ok(lastShadow < firstBody, `drawn as ${order.map((m) => m.renderOrder).join(', ')}`);
 });
+
+test('rain is drawn over every other layer', async () => {
+  const THREE = await import('../scene/vendor/three.module.js');
+  const { createLights } = await import('../scene/src/lights.js');
+  const { createLogoGlow } = await import('../scene/src/logo-glow.js');
+  const { createRain } = await import('../scene/src/rain.js');
+  const data = generateLeaves(createRandom(7));
+  const root = new THREE.Group();
+  const butterflies = createButterflies();
+  butterflies.update([{ id: 1, species: 'orange', x: 500, y: 400, heading: 0, flap: 1, state: 'wandering' }]);
+  const rain = createRain(createRandom(3));
+  root.add(createLeaves(data, green(), createRandom(2), createSprings(data)).group, butterflies.group,
+    createLights(createRandom(4)).group, createLogoGlow(new THREE.Texture()).mesh, rain.group);
+  const order = drawOrder(root);
+  const firstRain = order.findIndex((m) => rain.group.children.includes(m));
+  assert.equal(firstRain, order.length - rain.group.children.length, `drawn as ${order.map((m) => m.renderOrder).join(', ')}`);
+});
