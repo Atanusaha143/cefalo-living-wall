@@ -19,6 +19,10 @@ for name in "$label" local.green-wall; do
 	launchctl bootout "$domain/$name" 2>/dev/null || true
 	rm -f "$HOME/Library/LaunchAgents/$name.plist"
 done
+# A copy opened by hand rather than by the login item would keep running: quit every copy
+# (the app sets its photo only at launch, so the picture restored above stays).
+pkill -x "Cefalo Living Wall" 2>/dev/null || true
+pkill -x "Green Wall" 2>/dev/null || true
 rm -rf "$app" "$old_app" "$HOME/Library/Screen Savers/Cefalo Living Wall.saver"
 rm -f "$HOME/Library/Logs/Cefalo Living Wall.log" "$HOME/Library/Logs/Green Wall.log"
 if [ "$restored" = yes ]; then

@@ -26,6 +26,9 @@ rm -f "$HOME/Library/LaunchAgents/local.green-wall.plist"
 rm -rf "$HOME/Applications/Green Wall.app"
 
 launchctl bootout "$domain/$label" 2>/dev/null || true
+# A copy opened by hand rather than by the login item keeps drawing the old code over the
+# new one: quit every copy (quitting never changes the desktop picture).
+pkill -x "Cefalo Living Wall" 2>/dev/null || true
 mkdir -p "$HOME/Applications"
 rm -rf "$app"
 mv "$build/Cefalo Living Wall.app" "$app"

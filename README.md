@@ -22,7 +22,8 @@ The script builds the app and the screen saver, checks that both run, installs t
 at `~/Applications/Cefalo Living Wall.app` and the screen saver in
 `~/Library/Screen Savers`, sets the photo as your desktop picture (your current one is
 remembered), and starts the app now and at every login. macOS may show a "background
-item added" notification. Rerun the same command to update.
+item added" notification. Rerun the same command to update: it quits any copy that is
+still running, including one you opened by hand.
 
 Coming from the earlier "Green Wall" version? The installer removes it, and your pause
 choice, Motion level and remembered original wallpaper carry over.
@@ -64,8 +65,9 @@ saver: macOS only uses still frames of third-party screen savers there.
 sh mac/uninstall.sh
 ```
 
-This stops the app, removes it, the screen saver and the login item (including any left
-from "Green Wall"), and puts back your previous desktop picture.
+This stops the app (every running copy, including one you opened by hand), removes it, the
+screen saver and the login item (including any left from "Green Wall"), and puts back your
+previous desktop picture.
 
 ## FAQ
 
