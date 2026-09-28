@@ -56,8 +56,10 @@ page and choose it for each one. It plays the living wall while the screen saver
 and the wallpaper underneath rests meanwhile. **Options…** next to it sets its own Motion
 level (Energetic by default) and its own Rain mode (Off by default). Between runs nothing draws.
 
-On macOS 26 the lock screen itself shows a still picture rather than the live screen
-saver: macOS only uses still frames of third-party screen savers there.
+It keeps playing on the lock screen: when the screen saver starts (after inactivity, from a
+hot corner or with `open -a ScreenSaverEngine`), macOS 26 locks the Mac behind it and the wall
+goes on moving until you wake it; it rests as soon as the displays sleep. Locking straight
+away (the power button, ⌃⌘Q) shows the still photo instead: macOS starts no screen saver then.
 
 ## Uninstall
 
@@ -92,9 +94,11 @@ until you choose Resume.
 **Where is the menu bar icon?** On a MacBook with a notch, macOS hides menu-bar icons that do
 not fit beside it. Quit or ⌘-drag away another icon to make room.
 
-**Can the lock screen itself move?** No. No app can draw on the macOS lock screen, and
-macOS 26 shows only still frames of third-party screen savers there. The screen saver
-plays the living wall whenever it runs.
+**Can the lock screen move?** Yes, when the screen saver starts first: macOS locks behind
+it and the wall keeps moving. Locking with the power button or ⌃⌘Q shows the still photo,
+because macOS starts no screen saver then. To lock with the live wall, start the screen saver
+instead (a hot corner set to Start Screen Saver) and set Lock Screen ▸ Require password
+after screen saver begins to Immediately.
 
 **Something looks wrong?** `pkill -USR1 -f "Cefalo Living Wall.app/Contents/MacOS/Cefalo Living Wall"`
 writes what the app and each display's scene are doing to `~/Library/Logs/Cefalo Living Wall.log`.

@@ -2,7 +2,7 @@
 // per System Settings thumbnail. macOS 26 hosts third-party savers in legacyScreenSaver,
 // keeps pre-warmed copies of the selected one there, and gives no reliable signal for which
 // copy is on screen; so every copy draws exactly while the system reports a screen-saver
-// session (SaverSession, saverShouldRun in HostLogic.swift).
+// session or the screen is locked, displays awake (SaverSession, saverShouldRun in HostLogic.swift).
 
 import ScreenSaver
 import WebKit
@@ -12,10 +12,13 @@ let saverLog = Logger(subsystem: "local.cefalo-living-wall.saver", category: "sa
 /// Public, or the unified log redacts it.
 func slog(_ message: String) { saverLog.log("\(message, privacy: .public)") }
 
-/// The system's screen-saver session, shared by every view in this host process: a view
-/// created just after "did start" (macOS 26 sometimes shows exactly that one) still knows.
+/// The system's screen-saver session, the screen lock and the displays' sleep, shared by every
+/// view in this host process: a view created just after "did start" (macOS 26 sometimes shows
+/// exactly that one) still knows.
 enum SaverSession {
   private(set) static var running = false
+  private(set) static var locked = false
+  private(set) static var screensAsleep = false
   static let changed = Notification.Name("LivingWallSaverSessionChanged")
   /// New settings from the Options sheet (in-process; userInfo["motion"] Int, ["rain"] Int mode).
   static let optionsChanged = Notification.Name("LivingWallSaverOptionsChanged")
@@ -28,13 +31,31 @@ enum SaverSession {
     observing = true
     let apps = NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier)
     running = screenSaverSessionAtLaunch(runningApps: apps)
-    slog("host started: session \(running ? "running" : "stopped") (\(apps.count) apps visible)")
+    locked = screenLocked(sessionInfo: CGSessionCopyCurrentDictionary() as? [String: Any])
+    slog("host started: session \(running ? "running" : "stopped"), screen \(locked ? "locked" : "unlocked") (\(apps.count) apps visible)")
     for name in ["com.apple.screensaver.didstart", "com.apple.screensaver.didstop", "com.apple.screensaver.willstop"] {
       _ = DistributedNotificationCenter.default().addObserver(forName: .init(name), object: nil, queue: .main) { _ in
         let next = screenSaverSession(after: name, running: running)
         slog("\(name): session \(next ? "running" : "stopped")")
         guard next != running else { return }
         running = next
+        NotificationCenter.default.post(name: changed, object: nil)
+      }
+    }
+    // A lock is no screen-saver session, yet the lock screen shows the saver.
+    for (name, value) in [("com.apple.screenIsLocked", true), ("com.apple.screenIsUnlocked", false)] {
+      _ = DistributedNotificationCenter.default().addObserver(forName: .init(name), object: nil, queue: .main) { _ in
+        slog(name)
+        guard value != locked else { return }
+        locked = value
+        NotificationCenter.default.post(name: changed, object: nil)
+      }
+    }
+    for (name, value) in [(NSWorkspace.screensDidSleepNotification, true), (NSWorkspace.screensDidWakeNotification, false)] {
+      _ = NSWorkspace.shared.notificationCenter.addObserver(forName: name, object: nil, queue: .main) { _ in
+        slog("displays \(value ? "asleep" : "awake")")
+        guard value != screensAsleep else { return }
+        screensAsleep = value
         NotificationCenter.default.post(name: changed, object: nil)
       }
     }
@@ -188,7 +209,9 @@ final class LivingWallSaverView: ScreenSaverView {
   /// Draw only while it is worth it (saverShouldRun); sent to the page on change.
   private func refresh() {
     guard ready else { return }
-    let run = saverShouldRun(isPreview: isPreview, sessionRunning: SaverSession.running, inHost: inHost)
+    let run = saverShouldRun(
+      isPreview: isPreview, sessionRunning: SaverSession.running, locked: SaverSession.locked,
+      screensAsleep: SaverSession.screensAsleep, inHost: inHost)
     guard run != lastRun else { return }
     lastRun = run
     send("wallSetPaused(\(!run))")

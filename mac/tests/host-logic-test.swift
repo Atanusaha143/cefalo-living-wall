@@ -66,11 +66,23 @@ enum HostLogicTest {
     check(!shouldOfferScreenSaver(alreadyShown: false, saverInstalled: false), "never without the saver")
 
     // macOS 26 pre-warms copies of the saver and gives no reliable "on screen" signal, so every
-    // copy draws exactly while the system reports a screen-saver session.
-    check(saverShouldRun(isPreview: false, sessionRunning: true, inHost: true), "during a screen-saver session every copy draws")
-    check(!saverShouldRun(isPreview: false, sessionRunning: false, inHost: true), "between sessions the pre-warmed copies stay still")
-    check(saverShouldRun(isPreview: true, sessionRunning: false, inHost: true), "the System Settings thumbnail always draws")
-    check(saverShouldRun(isPreview: false, sessionRunning: false, inHost: false), "outside the screen-saver host (a check) it draws")
+    // copy draws exactly while the system reports a screen-saver session, or while the screen
+    // is locked (a lock is no session, yet the lock screen shows the saver), displays awake.
+    let run = { (preview: Bool, session: Bool, locked: Bool, asleep: Bool, host: Bool) in
+      saverShouldRun(isPreview: preview, sessionRunning: session, locked: locked, screensAsleep: asleep, inHost: host)
+    }
+    check(run(false, true, false, false, true), "during a screen-saver session every copy draws")
+    check(!run(false, false, false, false, true), "unlocked between sessions the pre-warmed copies stay still")
+    check(run(false, false, true, false, true), "while the screen is locked the lock screen's copy draws")
+    check(!run(false, false, true, true, true), "but not once the displays sleep (a night locked costs nothing)")
+    check(!run(false, true, false, true, true), "nor a session whose displays have gone to sleep")
+    check(run(true, false, false, false, true), "the System Settings thumbnail always draws")
+    check(run(false, false, false, false, false), "outside the screen-saver host (a check) it draws")
+    // A host macOS starts just after the lock never hears "screen is locked": it asks the session.
+    check(screenLocked(sessionInfo: ["CGSSessionScreenIsLocked": 1]), "a session reporting the screen locked is locked")
+    check(screenLocked(sessionInfo: ["CGSSessionScreenIsLocked": true]), "as a Bool too")
+    check(!screenLocked(sessionInfo: ["CGSSessionScreenIsLocked": 0]) && !screenLocked(sessionInfo: [:]), "otherwise it is not")
+    check(!screenLocked(sessionInfo: nil), "nor when there is no session to ask")
     check(screenSaverSession(after: "com.apple.screensaver.didstart", running: false), "did start begins a session")
     check(!screenSaverSession(after: "com.apple.screensaver.didstop", running: true), "did stop ends it")
     check(screenSaverSession(after: "com.apple.screensaver.willstop", running: true), "will stop changes nothing (macOS 26 also sends it at start)")

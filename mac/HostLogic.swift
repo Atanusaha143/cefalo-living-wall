@@ -76,10 +76,23 @@ func shouldOfferScreenSaver(alreadyShown: Bool, saverInstalled: Bool) -> Bool {
 
 /// Whether a screen-saver view should draw. macOS 26 keeps pre-warmed copies of the selected
 /// saver and gives no reliable "this copy is on screen" signal, so every copy draws exactly
-/// while the system reports a screen-saver session. Thumbnails in System Settings always draw,
-/// and so does a saver shown outside macOS's legacyScreenSaver host (e.g. `--check-saver`).
-func saverShouldRun(isPreview: Bool, sessionRunning: Bool, inHost: Bool) -> Bool {
-  isPreview || !inHost || sessionRunning
+/// while the system reports a screen-saver session, or while the screen is locked: a lock is
+/// no session, yet the lock screen shows the saver. Never while the displays sleep. Thumbnails
+/// in System Settings always draw, and so does a saver shown outside macOS's legacyScreenSaver
+/// host (e.g. `--check-saver`).
+func saverShouldRun(isPreview: Bool, sessionRunning: Bool, locked: Bool, screensAsleep: Bool, inHost: Bool) -> Bool {
+  isPreview || !inHost || ((sessionRunning || locked) && !screensAsleep)
+}
+
+/// Whether the screen is locked, from the login session's info (CGSessionCopyCurrentDictionary):
+/// macOS starts a fresh legacyScreenSaver just after locking, too late to hear "screen is locked".
+func screenLocked(sessionInfo: [String: Any]?) -> Bool {
+  switch sessionInfo?["CGSSessionScreenIsLocked"] {
+  case let flag as Bool: return flag
+  case let number as NSNumber: return number.boolValue
+  case let number as Int: return number != 0
+  default: return false
+  }
 }
 
 /// The screen-saver session after a system notification. Only "did start" and "did stop"
