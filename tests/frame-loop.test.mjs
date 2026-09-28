@@ -63,6 +63,27 @@ test('paused or capped at 0 schedules nothing', () => {
   }
 });
 
+test('a loop started while stopped still draws one frame, so a paused wall shows the wall, not a blank page', () => {
+  for (const stop of [(l) => l.setPaused(true), (l) => l.setMaxFps(0)]) {
+    const d = display(), c = counter();
+    const loop = createFrameLoop(c.draw, d);
+    stop(loop);
+    loop.start();
+    d.run(5000);
+    assert.equal(c.frames, 1);
+    assert.equal(d.waiting, 0);
+  }
+});
+
+test('a pause that arrives before the first scheduled frame still leaves one frame drawn', () => {
+  const d = display(), c = counter();
+  const loop = createFrameLoop(c.draw, d);
+  loop.start();
+  loop.setPaused(true);   // the host's pause can beat the display's first refresh
+  d.run(5000);
+  assert.equal(c.frames, 1);
+});
+
 test('simulation time does not jump on resume', () => {
   const d = display(), c = counter();
   const loop = createFrameLoop(c.draw, d);

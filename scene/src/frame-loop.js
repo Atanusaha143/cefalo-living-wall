@@ -2,7 +2,8 @@
 // scheduled at all. Below the display's refresh rate it sleeps with a timer until
 // just before the next frame is due, instead of waking on every refresh (the XDR
 // display refreshes at 120 Hz). Simulation time only advances while running, so a
-// resume never jumps.
+// resume never jumps. Starting draws one frame at once: a wall stopped from the outset, or
+// before the display's first refresh, still shows the wall instead of a blank page.
 export function createFrameLoop(draw, {
   now = () => performance.now(),
   requestFrame = (fn) => requestAnimationFrame(fn),
@@ -46,7 +47,7 @@ export function createFrameLoop(draw, {
     setHidden(v) { if (hidden !== Boolean(v)) { hidden = Boolean(v); changed(); } },
     /** Draw one frame at a fixed simulation time, e.g. for ?t= and while stopped. */
     renderAt(t) { simTime = t; draw(0, t); },
-    start() { schedule(); },
+    start() { draw(0, simTime); schedule(); },
     get running() { return running(); },
     get maxFps() { return maxFps; },
     get pending() { return raf !== null || timer !== null; },
