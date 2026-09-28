@@ -68,3 +68,21 @@ func hotCornerPlan(actions: [HotCorner: Int], choose choice: HotCorner?) -> HotC
   writes[choice] = startScreenSaver
   return HotCornerPlan(writes: writes, replaces: hotCornerActionName(actions[choice] ?? 0))
 }
+
+// The Settings window's Live Lock Screen pop-up: Off (item 0), then the corners in order.
+let liveLockTitles = ["Off"] + HotCorner.allCases.map(\.title)
+
+/// The corner a pop-up item stands for; nil for Off (or an item out of range).
+func liveLockChoice(at index: Int) -> HotCorner? {
+  (1...HotCorner.allCases.count).contains(index) ? HotCorner.allCases[index - 1] : nil
+}
+
+/// The pop-up item for a corner; 0 for Off.
+func liveLockIndex(of corner: HotCorner?) -> Int {
+  corner.flatMap { HotCorner.allCases.firstIndex(of: $0) }.map { $0 + 1 } ?? 0
+}
+
+/// The item the pop-up shows: the corner that starts the screen saver now, or Off.
+func liveLockIndex(actions: [HotCorner: Int]) -> Int {
+  liveLockIndex(of: liveLockCorner(actions: actions))
+}

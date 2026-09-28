@@ -19,6 +19,8 @@ echo "Checking the scene loads..."
 "$build/Cefalo Living Wall.app/Contents/MacOS/Cefalo Living Wall" --check
 echo "Checking the screen saver runs..."
 "$build/Cefalo Living Wall.app/Contents/MacOS/Cefalo Living Wall" --check-saver "$build/Cefalo Living Wall.saver"
+echo "Checking the Settings window..."
+"$build/Cefalo Living Wall.app/Contents/MacOS/Cefalo Living Wall" --check-settings
 
 # The old name: stop it and remove its app and login item.
 launchctl bootout "$domain/local.green-wall" 2>/dev/null || true
@@ -70,5 +72,5 @@ PLIST
 # after launch could interrupt its first run while it saves the previous desktop picture.
 launchctl bootstrap "$domain" "$agent"
 echo "Cefalo Living Wall installed: $app"
-echo "Screen saver installed: $saver (choose it in System Settings > Screen Saver)"
+echo "Screen saver installed: $saver (choose it in System Settings > Wallpaper; on macOS 15 and earlier, Screen Saver)"
 echo "Look for the three dots and two leaves in the menu bar. Log: ~/Library/Logs/Cefalo Living Wall.log"

@@ -78,6 +78,12 @@ enum HostLogicTest {
     check(!run(false, true, false, true, true), "nor a session whose displays have gone to sleep")
     check(run(true, false, false, false, true), "the System Settings thumbnail always draws")
     check(run(false, false, false, false, false), "outside the screen-saver host (a check) it draws")
+    // System Settings' page for the screen saver: its own page up to macOS 15, inside Wallpaper from macOS 26.
+    check(screenSaverSettingsPage(macOSMajor: 26) == "com.apple.Wallpaper-Settings.extension",
+      "on macOS 26 the screen saver is chosen on the Wallpaper page")
+    check(screenSaverSettingsPage(macOSMajor: 27) == "com.apple.Wallpaper-Settings.extension", "and after")
+    check([13, 14, 15].allSatisfy { screenSaverSettingsPage(macOSMajor: $0) == "com.apple.ScreenSaver-Settings.extension" },
+      "up to macOS 15 it has a page of its own")
     // A host macOS starts just after the lock never hears "screen is locked": it asks the session.
     check(screenLocked(sessionInfo: ["CGSSessionScreenIsLocked": 1]), "a session reporting the screen locked is locked")
     check(screenLocked(sessionInfo: ["CGSSessionScreenIsLocked": true]), "as a Bool too")

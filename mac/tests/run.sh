@@ -1,8 +1,8 @@
 #!/bin/sh
 # The macOS host's tests: the coverage maths, host decisions, the screen saver's stored
 # settings, the menu bar icon and the live lock screen's hot corner, then the real scene
-# and the screen saver loading in WebKit (the app's --check and --check-saver). Needs the
-# Xcode command line tools.
+# and the screen saver loading in WebKit and the Settings window building (the app's --check,
+# --check-saver and --check-settings). Needs the Xcode command line tools.
 set -eu
 here=$(cd "$(dirname "$0")/.." && pwd)
 build=$(mktemp -d)
@@ -28,3 +28,4 @@ if [ ! -x "$saver/Contents/MacOS/Cefalo Living Wall" ]; then
 	exit 1
 fi
 "$build/Cefalo Living Wall.app/Contents/MacOS/Cefalo Living Wall" --check-saver "$saver"
+"$build/Cefalo Living Wall.app/Contents/MacOS/Cefalo Living Wall" --check-settings

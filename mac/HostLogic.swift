@@ -84,6 +84,12 @@ func saverShouldRun(isPreview: Bool, sessionRunning: Bool, locked: Bool, screens
   isPreview || !inHost || ((sessionRunning || locked) && !screensAsleep)
 }
 
+/// System Settings' page for choosing the screen saver: macOS 26 moved it into Wallpaper; up to
+/// macOS 15 it had a page of its own. A page System Settings does not know opens General instead.
+func screenSaverSettingsPage(macOSMajor: Int) -> String {
+  macOSMajor >= 26 ? "com.apple.Wallpaper-Settings.extension" : "com.apple.ScreenSaver-Settings.extension"
+}
+
 /// Whether the screen is locked, from the login session's info (CGSessionCopyCurrentDictionary):
 /// macOS starts a fresh legacyScreenSaver just after locking, too late to hear "screen is locked".
 func screenLocked(sessionInfo: [String: Any]?) -> Bool {

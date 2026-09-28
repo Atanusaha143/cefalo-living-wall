@@ -313,10 +313,10 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private let state = NSMenuItem()
   private let pauseItem = NSMenuItem(title: "Pause", action: #selector(togglePause), keyEquivalent: "")
   private var rainItems: [NSMenuItem] = []
-  private var cornerItems: [NSMenuItem] = []   // Live Lock Screen: Off, then the corners
   private var motionItems: [NSMenuItem] = []
-  private let screenSaverItem = NSMenuItem(
-    title: "Screen Saver Settings…", action: #selector(openScreenSaverSettings), keyEquivalent: "")
+  private let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
+  /// Menu ▸ Settings…: the settings set once (SettingsWindow.swift), made when first opened.
+  private lazy var settings = SettingsWindow(openScreenSaverSettings: { [weak self] in self?.openScreenSaverSettings() })
   /// How fast and how far the leaves move; remembered across restarts.
   private var motion = motionLevel(stored: UserDefaults.standard.object(forKey: "motion") as? Int)
   /// Rain on every screen (a rainNames index); remembered across restarts, Off until chosen.
@@ -390,9 +390,11 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     if alert.runModal() == .alertFirstButtonReturn { openScreenSaverSettings() }
   }
 
-  /// System Settings on the Screen Saver page (Apple's supported link), or System Settings itself.
+  /// System Settings on the page where the screen saver is chosen (Apple's supported link), or
+  /// System Settings itself.
   @objc private func openScreenSaverSettings() {
-    if let page = URL(string: "x-apple.systempreferences:com.apple.ScreenSaver-Settings.extension"),
+    let major = ProcessInfo.processInfo.operatingSystemVersion.majorVersion
+    if let page = URL(string: "x-apple.systempreferences:\(screenSaverSettingsPage(macOSMajor: major))"),
       NSWorkspace.shared.open(page)
     {
       return
@@ -536,25 +538,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let motionMenu = NSMenuItem(title: "Motion", action: nil, keyEquivalent: "")
     motionMenu.submenu = levels
     menu.addItem(motionMenu)
-    // A hot corner that starts the screen saver: the Mac locks behind the moving wall (HotCorner.swift).
-    let corners = NSMenu(title: "Live Lock Screen")
-    corners.autoenablesItems = false
-    for corner in [nil] + HotCorner.allCases.map(Optional.some) {
-      let item = NSMenuItem(title: corner?.title ?? "Off", action: #selector(chooseCorner), keyEquivalent: "")
-      item.target = self
-      item.representedObject = corner?.rawValue
-      corners.addItem(item)
-      cornerItems.append(item)
-    }
-    corners.addItem(.separator())
-    let hint = NSMenuItem(title: "Move the pointer there to lock with the live wall", action: nil, keyEquivalent: "")
-    hint.isEnabled = false
-    corners.addItem(hint)
-    let cornersMenu = NSMenuItem(title: "Live Lock Screen", action: nil, keyEquivalent: "")
-    cornersMenu.submenu = corners
-    menu.addItem(cornersMenu)
-    screenSaverItem.target = self
-    menu.addItem(screenSaverItem)
+    settingsItem.target = self
+    menu.addItem(settingsItem)
     menu.addItem(.separator())
     let quit = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
     quit.target = self
@@ -570,30 +555,9 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     pauseItem.title = paused ? "Resume" : "Pause"
     pauseItem.isEnabled = true
     for item in rainItems { item.state = item.tag == rain ? .on : .off }
-    // Read each time: the corner may have been changed in System Settings.
-    let tick = liveLockCorner(actions: DockCorners.read())?.rawValue
-    for item in cornerItems { item.state = (item.representedObject as? String) == tick ? .on : .off }
   }
 
-  @objc private func chooseCorner(_ sender: NSMenuItem) {
-    let choice = (sender.representedObject as? String).flatMap(HotCorner.init(rawValue:))
-    let plan = hotCornerPlan(actions: DockCorners.read(), choose: choice)
-    guard !plan.writes.isEmpty else { return }
-    if let choice, let replaced = plan.replaces {
-      let alert = NSAlert()
-      alert.messageText = "The \(choice.name) is set to \(replaced). Replace it?"
-      alert.informativeText = "Moving the pointer there will start the screen saver instead, and lock your Mac behind the live wall."
-      alert.addButton(withTitle: "Replace")
-      alert.addButton(withTitle: "Cancel")
-      NSApp.activate(ignoringOtherApps: true)
-      guard alert.runModal() == .alertFirstButtonReturn else { return }
-    }
-    DockCorners.write(plan.writes)
-    // Remembered so that uninstalling clears only a corner this app set.
-    if let choice { UserDefaults.standard.set(choice.rawValue, forKey: "liveLockCorner") }
-    else { UserDefaults.standard.removeObject(forKey: "liveLockCorner") }
-    log("live lock screen: \(choice?.name ?? "off")")
-  }
+  @objc private func openSettings() { settings.show() }
 
   @objc private func chooseMotion(_ sender: NSMenuItem) {
     motion = sender.tag
@@ -777,13 +741,15 @@ enum LivingWall {
     let app = NSApplication.shared
     let arguments = CommandLine.arguments
     // Before anything reads preferences: the Controller's paused/motion start from them.
-    let checking = arguments.contains("--check") || arguments.contains("--check-saver")
+    let checking = ["--check", "--check-saver", "--check-settings"].contains(where: arguments.contains)
     if !checking { Migration.importSettings() }
     if arguments.contains("--restore-desktop-picture") {
       exit(DesktopPicture.restore() ? 0 : 1)
     }
     let delegate: NSApplicationDelegate =
-      arguments.contains("--check-saver") ? SaverCheck() : arguments.contains("--check") ? SceneCheck() : Controller()
+      arguments.contains("--check-saver") ? SaverCheck()
+      : arguments.contains("--check-settings") ? SettingsCheck()
+      : arguments.contains("--check") ? SceneCheck() : Controller()
     app.setActivationPolicy(.accessory)
     app.delegate = delegate
     withExtendedLifetime(delegate) { app.run() }

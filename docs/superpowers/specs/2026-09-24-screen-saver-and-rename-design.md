@@ -142,7 +142,7 @@ performs the actions.
 - Either button sets `screenSaverPromptShown = true`.
 - **Open Screen Saver Settings** opens `x-apple.systempreferences:com.apple.ScreenSaver-Settings.extension`,
   falling back to opening System Settings if that URL fails.
-- New leaf-menu item **Screen Saver Settings…** (below Motion) does the same at any time.
+- New leaf-menu item **Screen Saver Settings…** (below Motion) does the same at any time (2026-09-28: renamed **Screen Saver Options…** and moved into the Settings window as its button; see `2026-09-28-settings-window-design.md`).
 - Never shown in `--check`, `--check-saver` or `--restore-desktop-picture` modes.
 
 ## 8. Build, install, uninstall

@@ -38,6 +38,17 @@ enum HotCornerTest {
     let off = hotCornerPlan(actions: [.topRight: startScreenSaver, .bottomRight: 14], choose: nil)
     check(off == HotCornerPlan(writes: [.topRight: 1], replaces: nil), "Off clears the ticked corner and leaves the others")
 
+    // The Settings window's pop-up: Off, then the corners.
+    check(liveLockTitles == ["Off", "Top-Left Corner", "Top-Right Corner", "Bottom-Left Corner", "Bottom-Right Corner"],
+      "the pop-up offers Off, then the four corners")
+    check(liveLockChoice(at: 0) == nil && liveLockChoice(at: 2) == .topRight && liveLockChoice(at: 4) == .bottomRight,
+      "a pop-up item is Off or its corner")
+    check(liveLockChoice(at: 9) == nil && liveLockChoice(at: -1) == nil, "an item out of range is Off")
+    check(HotCorner.allCases.allSatisfy { liveLockChoice(at: liveLockIndex(of: $0)) == $0 } && liveLockIndex(of: nil) == 0,
+      "each corner maps to its item and back")
+    check(liveLockIndex(actions: [.bottomRight: startScreenSaver, .topLeft: 14]) == 4 && liveLockIndex(actions: [:]) == 0,
+      "the pop-up shows the corner that starts the screen saver, or Off")
+
     if failures > 0 {
       print("\(failures) failed")
       exit(1)
