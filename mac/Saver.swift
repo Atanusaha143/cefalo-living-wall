@@ -92,8 +92,11 @@ final class OptionsSheet: NSObject {
     let content = NSView(frame: NSRect(x: 0, y: 0, width: 360, height: 196))
     let label = NSTextField(labelWithString: "Motion:")
     label.frame = NSRect(x: 20, y: 148, width: 70, height: 20)
-    popup.addItems(withTitles: motionNames)
-    popup.selectItem(at: SaverSettings.shared.motion - 1)
+    for (level, name) in motionLevels {
+      popup.addItem(withTitle: name)
+      popup.lastItem?.tag = level
+    }
+    popup.selectItem(withTag: SaverSettings.shared.motion)
     let hint = NSTextField(labelWithString: "How fast and how far the leaves move.")
     hint.frame = NSRect(x: 20, y: 118, width: 320, height: 20)
     hint.textColor = .secondaryLabelColor
@@ -115,7 +118,7 @@ final class OptionsSheet: NSObject {
   }
 
   @objc private func save() {
-    let level = motionLevel(stored: popup.indexOfSelectedItem + 1), rain = rainMode(stored: rainPopup.indexOfSelectedItem)
+    let level = motionLevel(stored: popup.selectedTag()), rain = rainMode(stored: rainPopup.indexOfSelectedItem)
     SaverSettings.shared.motion = level
     SaverSettings.shared.rain = rain
     slog("options saved: motion \(level), rain \(rain)")

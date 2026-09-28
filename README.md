@@ -39,8 +39,9 @@ Click the icon in the menu bar, Cefalo's three dots with two leaves opening from
   the roof, knock and shake the leaves and lean together in the gusts, and a monsoon greys the
   view behind a veil. The leaves turn glossy and a mist dims the scene; they dry about a minute
   after it stops. Remembered, and Off until you choose a mode.
-- **Motion** sets how fast and how far the leaves move: Calm, Gentle, Lively, Energetic
-  (the default) or Wild. It applies to every display and is remembered.
+- **Motion** sets how fast and how far the leaves move: Gentle, Lively (the default) or
+  Wild. Switching eases into the new level over about a second. It applies to every display
+  and is remembered.
 - **Settings…** (⌘,) opens a window for the settings you set once:
   - **Live Lock Screen** picks a hot corner, or **Off**: moving the pointer into that corner
     starts the screen saver, and your Mac locks behind it. It is the living wall only where
@@ -65,7 +66,7 @@ savers; System Settings → Screen Saver, under *Other*, on macOS 13–15). With
 than one display, macOS keeps a choice per display: pick the display at the top of that
 page and choose it for each one. It plays the living wall while the screen saver runs,
 and the wallpaper underneath rests meanwhile. **Options…** next to it sets its own Motion
-level (Energetic by default) and its own Rain mode (Off by default). Between runs nothing draws.
+level (Lively by default) and its own Rain mode (Off by default). Between runs nothing draws.
 
 It keeps playing on the lock screen: when the screen saver starts (after inactivity, from a
 hot corner or with `open -a ScreenSaverEngine`), macOS 26 locks the Mac behind it and the wall
@@ -127,10 +128,11 @@ npm run test:mac     # host logic + the app and screen saver running in WebKit
 npm run test:photo   # the maths that prepares the photo
 ```
 
-In the browser: move the pointer over the leaves, Space to pause, keys 1–5 to pick the
+In the browser: move the pointer over the leaves, Space to pause, keys 1–3 to pick the
 Motion level, R to step through the rain modes. Add `?debug` for frame rate and frame time,
-`?t=12` to freeze at 12 s, `?seed=3` for a different wall, `?motion=1`…`5` to start at a
-Motion level, and `?rain=1`…`3` to start it raining (Drizzle, Steady, Monsoon).
+`?t=12` to freeze at 12 s, `?seed=3` for a different wall, `?motion=3`…`5` to start at a
+Motion level (Gentle, Lively, Wild), and `?rain=1`…`3` to start it raining (Drizzle,
+Steady, Monsoon).
 
 The photo the scene uses, `scene/assets/wall.jpg`, is made from the original
 `assets-src/green-wall.jpg` by `npm run photo`: it scales it to 3840×2560, levels the

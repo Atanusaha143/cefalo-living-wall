@@ -47,14 +47,15 @@ func picturesToRestore(screens: [String], saved: [String: String], exists: (URL)
   return out
 }
 
-/// The Motion menu's levels, in the same order as scene/src/motion.js.
-let motionNames = ["Calm", "Gentle", "Lively", "Energetic", "Wild"]
+/// The Motion menu's levels, as in scene/src/motion.js. They keep the numbers the five-level
+/// versions stored (Calm 1 … Wild 5), so saved choices need no migration.
+let motionLevels: [(level: Int, name: String)] = [(3, "Gentle"), (4, "Lively"), (5, "Wild")]
 
-/// The Motion level to use: the stored choice clamped to 1…5, or Energetic (4) until the
-/// user picks one.
+/// The Motion level to use: the stored choice clamped to 3…5 (an old Calm or Gentle reads as
+/// Gentle), or Lively (4) until the user picks one.
 func motionLevel(stored: Int?) -> Int {
   guard let stored else { return 4 }
-  return min(motionNames.count, max(1, stored))
+  return min(motionLevels[motionLevels.count - 1].level, max(motionLevels[0].level, stored))
 }
 
 /// The preferences carried over from the old "Green Wall" app: only these keys, and only

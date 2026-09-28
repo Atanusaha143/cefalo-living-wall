@@ -37,7 +37,7 @@ for size in 1512,982 1920,1080; do
 	node -e '
 	  const r = JSON.parse(process.argv[1]);
 	  const bad = ["webgl2", "bridge", "nonBlank", "diagnostics"].filter((k) => r[k] !== true);
-	  if (r.motion !== 4) bad.push(`motion ${r.motion} (expected the Energetic default, 4)`);
+	  if (r.motion !== 4) bad.push(`motion ${r.motion} (expected the Lively default, 4)`);
 	  const raining = process.argv[3] === "rain";
 	  if (raining && !(r.rain?.mode === 2 && r.rain.level > 0)) bad.push(`rain ${JSON.stringify(r.rain)} (expected Steady rain)`);
 	  if (!raining && r.rain?.mode !== 0) bad.push(`rain ${JSON.stringify(r.rain)} (expected it dry)`);

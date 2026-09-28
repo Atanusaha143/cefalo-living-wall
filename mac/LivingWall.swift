@@ -104,7 +104,7 @@ final class Wallpaper: NSObject, WKNavigationDelegate {
     send()
   }
 
-  /// The Motion level (1 Calm … 5 Wild).
+  /// The Motion level (3 Gentle, 4 Lively, 5 Wild).
   func setMotion(_ level: Int) {
     guard level != motion else { return }
     motion = level
@@ -528,10 +528,10 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     menu.addItem(rainMenu)
     let levels = NSMenu(title: "Motion")
     levels.autoenablesItems = false
-    for (index, name) in motionNames.enumerated() {
+    for (level, name) in motionLevels {
       let item = NSMenuItem(title: name, action: #selector(chooseMotion), keyEquivalent: "")
       item.target = self
-      item.tag = index + 1
+      item.tag = level
       levels.addItem(item)
       motionItems.append(item)
     }
@@ -618,7 +618,7 @@ final class SceneCheck: NSObject, NSApplicationDelegate {
     let wall = Wallpaper(screen: NSScreen.main ?? NSScreen.screens[0], root: root, visible: false)
     self.wall = wall
     wall.setPaused(false)
-    wall.setMotion(2)
+    wall.setMotion(3)   // Gentle: not the default, so the page must have been told
     wall.setRain(3)   // a Monsoon, as for a display connected while it rains
     wall.setRate(0)
     func expect(_ what: String, after delay: Double, _ test: @escaping (String) -> Bool, then next: @escaping () -> Void) {
@@ -634,7 +634,7 @@ final class SceneCheck: NSObject, NSApplicationDelegate {
     }
     whenReady {
       expect("the scene kept running after the host asked for 0 fps, or missed Motion or Rain", after: 1,
-        { $0.contains("\"running\":false") && $0.contains("\"motion\":2") && $0.contains("\"rain\":{\"mode\":3") }) {
+        { $0.contains("\"running\":false") && $0.contains("\"motion\":3") && $0.contains("\"rain\":{\"mode\":3") }) {
         wall.setRate(30)
         expect("the scene did not restart at 30 fps", after: 1, { $0.contains("\"running\":true") }) {
           wall.setPointer(NSPoint(x: 300, y: 300))
@@ -712,14 +712,14 @@ final class SaverCheck: NSObject, NSApplicationDelegate {
   }
 
   /// Options' Done tells every view in the process the new settings; both must switch to
-  /// Calm and Steady rain.
+  /// Gentle and Steady rain.
   private func checkOptions() {
     pending = views.count
     NotificationCenter.default.post(
-      name: .init("LivingWallSaverOptionsChanged"), object: nil, userInfo: ["motion": 1, "rain": 2])
+      name: .init("LivingWallSaverOptionsChanged"), object: nil, userInfo: ["motion": 3, "rain": 2])
     for (index, view) in views.enumerated() {
       poll(view, name: index == 0 ? "full screen (Options)" : "preview (Options)", tries: 20) {
-        $0.contains("\"motion\":1") && $0.contains("\"rain\":{\"mode\":2")
+        $0.contains("\"motion\":3") && $0.contains("\"rain\":{\"mode\":2")
       }
     }
   }

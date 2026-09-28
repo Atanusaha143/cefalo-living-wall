@@ -50,14 +50,16 @@ enum SaverSettingsTest {
       return
     }
     removeStored()
-    check(readInAnotherProcess() == "4 0", "Energetic and dry until Options saves something")
-    settings.motion = 1
-    check(readInAnotherProcess() == "1 0", "Calm saved in Options is what a newly started screen-saver host reads")
+    check(readInAnotherProcess() == "4 0", "Lively and dry until Options saves something")
+    settings.motion = 3
+    check(readInAnotherProcess() == "3 0", "Gentle saved in Options is what a newly started screen-saver host reads")
     settings.rain = 3
-    check(readInAnotherProcess() == "1 3", "so is a Monsoon, without touching Motion")
+    check(readInAnotherProcess() == "3 3", "so is a Monsoon, without touching Motion")
     settings.motion = 5
     settings.rain = 0
     check(readInAnotherProcess() == "5 0", "and later choices replace them")
+    settings.motion = 1
+    check(readInAnotherProcess() == "3 0", "a Calm saved by a five-level version reads as Gentle")
     removeStored()
     exit(failures == 0 ? 0 : 1)
   }

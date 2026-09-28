@@ -29,10 +29,11 @@ enum HostLogicTest {
     check(statusLine(failed: false, power: power, paused: false, rate: 30) == "Running · 30 fps", "and it says it is running")
     check(statusLine(failed: false, power: power, paused: true, rate: 0) == "Paused", "pausing still works in Low Power Mode")
 
-    check(motionNames == ["Calm", "Gentle", "Lively", "Energetic", "Wild"], "five motion levels, Calm to Wild")
-    check(motionLevel(stored: nil) == 4, "Energetic until the user picks another level")
-    check(motionLevel(stored: 2) == 2, "a stored level is used")
-    check(motionLevel(stored: 0) == 1 && motionLevel(stored: 9) == 5, "a stored level out of range is clamped")
+    check(motionLevels.map { $0.name } == ["Gentle", "Lively", "Wild"], "three motion levels, Gentle to Wild")
+    check(motionLevel(stored: nil) == 4, "Lively until the user picks another level")
+    check(motionLevel(stored: 3) == 3 && motionLevel(stored: 5) == 5, "a stored level is used")
+    check(motionLevel(stored: 1) == 3 && motionLevel(stored: 2) == 3, "a Calm or Gentle saved by a five-level version reads as Gentle")
+    check(motionLevel(stored: 0) == 3 && motionLevel(stored: 9) == 5, "a stored level out of range is clamped")
 
     let still = URL(fileURLWithPath: "/Users/me/Library/Application Support/Cefalo Living Wall/still.jpg")
     let oldStill = URL(fileURLWithPath: "/Users/me/Library/Application Support/Green Wall/still.jpg")
@@ -97,10 +98,10 @@ enum HostLogicTest {
     check(rainMode(stored: nil) == 0 && rainMode(stored: 2) == 2, "no rain until a mode is chosen; a stored mode is used")
     check(rainMode(stored: 7) == 3 && rainMode(stored: -1) == 0, "a stored mode out of range is clamped")
     let read = { (object: String?) in optionsFromBroadcast(object).map { "\($0.motion) \($0.rain)" } }
-    check(read("2,1") == "2 1" && read("4,0") == "4 0" && read("1,3") == "1 3", "Options' broadcast carries the Motion level and the Rain mode")
-    check(read("9,0") == "5 0" && read("0,2") == "1 2", "a broadcast level is clamped")
+    check(read("3,1") == "3 1" && read("4,0") == "4 0" && read("5,3") == "5 3", "Options' broadcast carries the Motion level and the Rain mode")
+    check(read("9,0") == "5 0" && read("1,2") == "3 2", "a broadcast level is clamped")
     check([nil, "", "fast", "3", "3,4", "3,-1", "3,1,1", ",1", "3,"].allSatisfy { read($0) == nil }, "a malformed broadcast is ignored")
-    check(read(optionsBroadcast(motion: 2, rain: 3)) == "2 3", "what Options sends is what every host reads")
+    check(read(optionsBroadcast(motion: 5, rain: 3)) == "5 3", "what Options sends is what every host reads")
 
     // A host macOS starts *for* a run appears after "did start": it must still know.
     check(screenSaverSessionAtLaunch(runningApps: ["com.apple.finder", "com.apple.ScreenSaver.Engine"]),

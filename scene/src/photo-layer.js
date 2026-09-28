@@ -115,7 +115,7 @@ export function createPhotoLayer(photo, random) {
     mesh,
     /** The cursor moved over the wall at (x, y), time t. */
     poke(x, y, t) { uniforms.uPointer.value.set(x, y); pokedAt = t; },
-    /** t: wind time; strength: the Motion setting's (the shimmer is capped near Energetic so the photo never smears);
+    /** t: wind time; strength: the Motion setting's (the shimmer is capped at Lively's so the photo never smears);
      *  overcast: rain's dimming, 0..1. */
     update(t, gust, strength = 1, overcast = 0) {
       uniforms.uOvercast.value = overcast;

@@ -14,7 +14,7 @@ import { createLogoGlow } from './logo-glow.js';
 import { createButterflies } from './butterflies.js';
 import { createRainWeather, stormBoost, knockCount, impact } from './rain-weather.js';
 import { createRain } from './rain.js';
-import { createMotionClock, DEFAULT_MOTION } from './motion.js';
+import { createMotionClock, DEFAULT_MOTION, MOTION_LEVELS } from './motion.js';
 
 const params = new URLSearchParams(location.search);
 const SEED = Number(params.get('seed') ?? 7);
@@ -114,7 +114,7 @@ async function boot() {
     now = weather.at(t);
     // The rain brings wind: it runs the wind's clock faster and sways the leaves harder.
     const storm = stormBoost(now.level);
-    const windTime = clock.advance(dt * storm.speed), { strength } = clock.level;
+    const windTime = clock.advance(dt * storm.speed), { strength } = clock;   // eased after a switch
     const sway = Math.min(2.2, strength * storm.strength);
     const gust = wind.current(windTime);
     springs.setStrength(strength);   // the cursor's pull stays the Motion level's
@@ -207,7 +207,7 @@ boot().then((stats) => {
     addEventListener('pointermove', (e) => window.wallSetPointer(e.clientX, e.clientY));
     document.documentElement.addEventListener('pointerleave', () => window.wallPointerOut());
     addEventListener('keydown', (e) => {
-      if (/^[1-5]$/.test(e.key)) { window.wallSetMotion(Number(e.key)); return; }   // Motion level
+      if (/^[1-3]$/.test(e.key)) { window.wallSetMotion(MOTION_LEVELS[e.key - 1].level); return; }   // Motion level, in menu order
       if (e.key === 'r' || e.key === 'R') { pending.rain = (pending.rain + 1) % 4; window.wallSetRain(pending.rain); return; }   // Off → Drizzle → Steady → Monsoon
       if (e.code !== 'Space') return;
       e.preventDefault();
