@@ -25,8 +25,8 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
     let grid = NSGridView(views: [
       [Self.label("Live Lock Screen"), corner],
       [NSGridCell.emptyContentView, Self.note(
-        "Move the pointer into that corner to start the screen saver: your Mac locks behind the moving wall. "
-          + "The power button shows a still photo.")],
+        "Move the pointer into that corner to start the screen saver: with Cefalo Living Wall chosen below for "
+          + "each display, your Mac locks behind the moving wall. The power button shows a still photo.")],
       [Self.label("Screen Saver"), screenSaverButton],
       [NSGridCell.emptyContentView, Self.note("Choose Cefalo Living Wall for each display. Its Options… set its own Motion and Rain.")],
     ])

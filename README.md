@@ -43,7 +43,9 @@ Click the icon in the menu bar, Cefalo's three dots with two leaves opening from
   (the default) or Wild. It applies to every display and is remembered.
 - **Settings…** (⌘,) opens a window for the settings you set once:
   - **Live Lock Screen** picks a hot corner, or **Off**: moving the pointer into that corner
-    starts the screen saver, and your Mac locks behind the moving wall. It shows the corner
+    starts the screen saver, and your Mac locks behind it. It is the living wall only where
+    Cefalo Living Wall is the chosen screen saver (Screen Saver Options…, for each display);
+    elsewhere the corner starts whichever screen saver is chosen. It shows the corner
     that starts the screen saver now, even one set in System Settings; a corner already used
     for something else (Quick Note, say) asks before it is replaced. The Dock restarts to take
     the change (a brief flicker). Uninstalling clears a corner set here.

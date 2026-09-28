@@ -40,8 +40,9 @@ front although the app has no Dock icon (the app activates).
 
 ```
   Live Lock Screen   [ Top-Right Corner      ▾ ]
-     Move the pointer into that corner to start the screen saver: your Mac locks
-     behind the moving wall. The power button shows a still photo.
+     Move the pointer into that corner to start the screen saver: with Cefalo Living
+     Wall chosen below for each display, your Mac locks behind the moving wall. The
+     power button shows a still photo.
 
   Screen Saver       [ Screen Saver Options… ]
      Choose Cefalo Living Wall for each display. Its Options… set its own Motion
@@ -60,7 +61,10 @@ front although the app has no Dock icon (the app activates).
   (`openScreenSaverSettings`): the Wallpaper page on macOS 26, which holds the screen savers,
   the Screen Saver page up to macOS 15 (`screenSaverSettingsPage(macOSMajor:)`). Found at the
   first try: the old link opened General on macOS 26, which has no Screen Saver page.
-- The explanations are secondary (grey, small) text under each row.
+- The explanations are secondary (grey, small) text under each row. The corner starts whichever
+  screen saver is chosen for each display, so the Live Lock Screen line points at the Screen
+  Saver row below (2026-09-28, the user's point); the app does not read that choice (macOS keeps
+  it in a private format).
 
 Unchanged: the first-run "Use Cefalo Living Wall as your screen saver?" prompt; uninstall
 clearing an app-set corner; Rain and Motion.
