@@ -20,7 +20,7 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 # Built for this Mac's own architecture; the binary never leaves it.
 swiftc -O -parse-as-library -swift-version 5 -module-name LivingWall -target "$target" \
 	-o "$app/Contents/MacOS/Cefalo Living Wall" "$here/LivingWall.swift" "$here/SceneWebView.swift" \
-	"$here/Coverage.swift" "$here/HostLogic.swift" "$here/MenuIcon.swift" -framework Cocoa -framework WebKit -framework ScreenSaver
+	"$here/Coverage.swift" "$here/HostLogic.swift" "$here/MenuIcon.swift" "$here/HotCorner.swift" -framework Cocoa -framework WebKit -framework ScreenSaver
 cp "$here/Info.plist" "$app/Contents/Info.plist"
 # No trailing slash on the source: with one, cp copies the folder's contents instead.
 cp -R "$project/scene" "$app/Contents/Resources/"

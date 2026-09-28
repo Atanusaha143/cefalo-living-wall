@@ -209,6 +209,33 @@ func supportFolder(_ name: String) -> URL {
   FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent(name)
 }
 
+/// The Dock's hot corners (HotCorner.swift decides what to write). The Dock only reads them
+/// when it starts, so a change restarts it; macOS brings it straight back.
+enum DockCorners {
+  static let domain = "com.apple.dock" as CFString
+
+  static func read() -> [HotCorner: Int] {
+    CFPreferencesAppSynchronize(domain)
+    var actions: [HotCorner: Int] = [:]
+    for corner in HotCorner.allCases {
+      actions[corner] = (CFPreferencesCopyAppValue(corner.actionKey as CFString, domain) as? NSNumber)?.intValue ?? 0
+    }
+    return actions
+  }
+
+  static func write(_ codes: [HotCorner: Int]) {
+    for (corner, code) in codes {
+      CFPreferencesSetAppValue(corner.actionKey as CFString, code as CFNumber, domain)
+      if code == startScreenSaver { CFPreferencesSetAppValue(corner.modifierKey as CFString, 0 as CFNumber, domain) }
+    }
+    CFPreferencesAppSynchronize(domain)
+    let restart = Process()
+    restart.executableURL = URL(fileURLWithPath: "/usr/bin/killall")
+    restart.arguments = ["Dock"]
+    try? restart.run()
+  }
+}
+
 /// The still photo behind the live layer, and the user's own picture to restore later.
 enum DesktopPicture {
   static let savedKey = "previousDesktopPictures"
@@ -286,6 +313,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private let state = NSMenuItem()
   private let pauseItem = NSMenuItem(title: "Pause", action: #selector(togglePause), keyEquivalent: "")
   private var rainItems: [NSMenuItem] = []
+  private var cornerItems: [NSMenuItem] = []   // Live Lock Screen: Off, then the corners
   private var motionItems: [NSMenuItem] = []
   private let screenSaverItem = NSMenuItem(
     title: "Screen Saver Settings…", action: #selector(openScreenSaverSettings), keyEquivalent: "")
@@ -508,6 +536,23 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let motionMenu = NSMenuItem(title: "Motion", action: nil, keyEquivalent: "")
     motionMenu.submenu = levels
     menu.addItem(motionMenu)
+    // A hot corner that starts the screen saver: the Mac locks behind the moving wall (HotCorner.swift).
+    let corners = NSMenu(title: "Live Lock Screen")
+    corners.autoenablesItems = false
+    for corner in [nil] + HotCorner.allCases.map(Optional.some) {
+      let item = NSMenuItem(title: corner?.title ?? "Off", action: #selector(chooseCorner), keyEquivalent: "")
+      item.target = self
+      item.representedObject = corner?.rawValue
+      corners.addItem(item)
+      cornerItems.append(item)
+    }
+    corners.addItem(.separator())
+    let hint = NSMenuItem(title: "Move the pointer there to lock with the live wall", action: nil, keyEquivalent: "")
+    hint.isEnabled = false
+    corners.addItem(hint)
+    let cornersMenu = NSMenuItem(title: "Live Lock Screen", action: nil, keyEquivalent: "")
+    cornersMenu.submenu = corners
+    menu.addItem(cornersMenu)
     screenSaverItem.target = self
     menu.addItem(screenSaverItem)
     menu.addItem(.separator())
@@ -525,6 +570,29 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     pauseItem.title = paused ? "Resume" : "Pause"
     pauseItem.isEnabled = true
     for item in rainItems { item.state = item.tag == rain ? .on : .off }
+    // Read each time: the corner may have been changed in System Settings.
+    let tick = liveLockCorner(actions: DockCorners.read())?.rawValue
+    for item in cornerItems { item.state = (item.representedObject as? String) == tick ? .on : .off }
+  }
+
+  @objc private func chooseCorner(_ sender: NSMenuItem) {
+    let choice = (sender.representedObject as? String).flatMap(HotCorner.init(rawValue:))
+    let plan = hotCornerPlan(actions: DockCorners.read(), choose: choice)
+    guard !plan.writes.isEmpty else { return }
+    if let choice, let replaced = plan.replaces {
+      let alert = NSAlert()
+      alert.messageText = "The \(choice.name) is set to \(replaced). Replace it?"
+      alert.informativeText = "Moving the pointer there will start the screen saver instead, and lock your Mac behind the live wall."
+      alert.addButton(withTitle: "Replace")
+      alert.addButton(withTitle: "Cancel")
+      NSApp.activate(ignoringOtherApps: true)
+      guard alert.runModal() == .alertFirstButtonReturn else { return }
+    }
+    DockCorners.write(plan.writes)
+    // Remembered so that uninstalling clears only a corner this app set.
+    if let choice { UserDefaults.standard.set(choice.rawValue, forKey: "liveLockCorner") }
+    else { UserDefaults.standard.removeObject(forKey: "liveLockCorner") }
+    log("live lock screen: \(choice?.name ?? "off")")
   }
 
   @objc private func chooseMotion(_ sender: NSMenuItem) {

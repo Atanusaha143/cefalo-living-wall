@@ -41,6 +41,11 @@ Click the icon in the menu bar, Cefalo's three dots with two leaves opening from
   after it stops. Remembered, and Off until you choose a mode.
 - **Motion** sets how fast and how far the leaves move: Calm, Gentle, Lively, Energetic
   (the default) or Wild. It applies to every display and is remembered.
+- **Live Lock Screen** picks a hot corner, or **Off**: moving the pointer into that corner
+  starts the screen saver, and your Mac locks behind the moving wall. The tick shows the
+  corner that starts the screen saver, even one set in System Settings; a corner already used
+  for something else (Quick Note, say) asks before it is replaced. The Dock restarts to take
+  the change (a brief flicker). Uninstalling clears a corner set here.
 - **Screen Saver Settings…** opens System Settings on the Screen Saver page.
 - **Quit** closes it until you next log in.
 
@@ -96,9 +101,9 @@ not fit beside it. Quit or ⌘-drag away another icon to make room.
 
 **Can the lock screen move?** Yes, when the screen saver starts first: macOS locks behind
 it and the wall keeps moving. Locking with the power button or ⌃⌘Q shows the still photo,
-because macOS starts no screen saver then. To lock with the live wall, start the screen saver
-instead (a hot corner set to Start Screen Saver) and set Lock Screen ▸ Require password
-after screen saver begins to Immediately.
+because macOS starts no screen saver then. To lock with the live wall, choose a corner in
+the menu's **Live Lock Screen** and move the pointer there, and set System Settings ▸ Lock
+Screen ▸ Require password after screen saver begins to Immediately.
 
 **Something looks wrong?** `pkill -USR1 -f "Cefalo Living Wall.app/Contents/MacOS/Cefalo Living Wall"`
 writes what the app and each display's scene are doing to `~/Library/Logs/Cefalo Living Wall.log`.

@@ -23,6 +23,16 @@ done
 # (the app sets its photo only at launch, so the picture restored above stays).
 pkill -x "Cefalo Living Wall" 2>/dev/null || true
 pkill -x "Green Wall" 2>/dev/null || true
+# The live lock screen's hot corner, if this app set it and it still starts the screen saver:
+# with the screen saver gone it would start another one.
+corner=$(defaults read "$label" liveLockCorner 2>/dev/null || true)
+case "$corner" in tl | tr | bl | br)
+	if [ "$(defaults read com.apple.dock "wvous-$corner-corner" 2>/dev/null || true)" = 5 ]; then
+		defaults write com.apple.dock "wvous-$corner-corner" -int 1
+		killall Dock 2>/dev/null || true
+	fi
+	;;
+esac
 rm -rf "$app" "$old_app" "$HOME/Library/Screen Savers/Cefalo Living Wall.saver"
 rm -f "$HOME/Library/Logs/Cefalo Living Wall.log" "$HOME/Library/Logs/Green Wall.log"
 if [ "$restored" = yes ]; then

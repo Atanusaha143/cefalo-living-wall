@@ -1,7 +1,8 @@
 #!/bin/sh
 # The macOS host's tests: the coverage maths, host decisions, the screen saver's stored
-# settings and the menu bar icon, then the real scene and the screen saver loading in WebKit (the app's --check
-# and --check-saver). Needs the Xcode command line tools.
+# settings, the menu bar icon and the live lock screen's hot corner, then the real scene
+# and the screen saver loading in WebKit (the app's --check and --check-saver). Needs the
+# Xcode command line tools.
 set -eu
 here=$(cd "$(dirname "$0")/.." && pwd)
 build=$(mktemp -d)
@@ -16,6 +17,8 @@ swiftc -parse-as-library -swift-version 5 -o "$build/saver-settings-test" "$here
 "$build/saver-settings-test"
 swiftc -parse-as-library -swift-version 5 -o "$build/menu-icon-test" "$here/MenuIcon.swift" "$here/tests/menu-icon-test.swift"
 "$build/menu-icon-test"
+swiftc -parse-as-library -swift-version 5 -o "$build/hot-corner-test" "$here/HotCorner.swift" "$here/tests/hot-corner-test.swift"
+"$build/hot-corner-test"
 
 sh "$here/build.sh" "$build"
 "$build/Cefalo Living Wall.app/Contents/MacOS/Cefalo Living Wall" --check
