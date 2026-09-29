@@ -1,8 +1,8 @@
 #!/bin/sh
 # Build "Cefalo Living Wall.app" and "Cefalo Living Wall.saver" into the folder given
 # (default: build/): compile each, add its own copy of the scene and the still of its first
-# frame, sign ad hoc. Needs the Xcode command line tools, and a logged-in session: the app
-# renders the still through WebKit.
+# frame, give the app its icon, sign ad hoc. Needs the Xcode command line tools, and a
+# logged-in session: the app renders the still through WebKit.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 project=$(dirname "$here")
@@ -21,13 +21,19 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 # Built for this Mac's own architecture; the binary never leaves it.
 swiftc -O -parse-as-library -swift-version 5 -module-name LivingWall -target "$target" \
 	-o "$app/Contents/MacOS/Cefalo Living Wall" "$here/LivingWall.swift" "$here/SceneWebView.swift" \
-	"$here/Coverage.swift" "$here/HostLogic.swift" "$here/MenuIcon.swift" "$here/HotCorner.swift" "$here/SettingsWindow.swift" "$here/SceneStill.swift" -framework Cocoa -framework WebKit -framework ScreenSaver
+	"$here/Coverage.swift" "$here/HostLogic.swift" "$here/MenuIcon.swift" "$here/HotCorner.swift" "$here/SettingsWindow.swift" "$here/SceneStill.swift" "$here/AppIcon.swift" -framework Cocoa -framework WebKit -framework ScreenSaver
 cp "$here/Info.plist" "$app/Contents/Info.plist"
 # No trailing slash on the source: with one, cp copies the folder's contents instead.
 cp -R "$project/scene" "$app/Contents/Resources/"
 # The scene's first frame, with the leaves it adds to the photo: the desktop picture, and the
 # screen saver's still while the scene loads. Rendered before signing, which seals the bundle.
 "$app/Contents/MacOS/Cefalo Living Wall" --render-still "$app/Contents/Resources/still.jpg"
+# Its icon: the menu bar icon's mark in Cefalo's colours on a white tile, every size.
+iconset="$out/AppIcon.iconset"
+rm -rf "$iconset"
+"$app/Contents/MacOS/Cefalo Living Wall" --render-icon "$iconset"
+iconutil -c icns -o "$app/Contents/Resources/AppIcon.icns" "$iconset"
+rm -rf "$iconset"
 codesign --force --sign - "$app" >/dev/null 2>&1 || echo "note: ad-hoc signing failed; the app still runs locally" >&2
 echo "Built $app"
 

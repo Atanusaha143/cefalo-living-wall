@@ -32,7 +32,8 @@ choice, Motion level and remembered original wallpaper carry over.
 
 ## Use
 
-Click the icon in the menu bar, Cefalo's three dots with two leaves opening from them:
+Click the icon in the menu bar, Cefalo's three dots with two leaves opening from them (the
+app's own icon, in Finder and Login Items, is the same mark in Cefalo's colours):
 
 - **Pause / Resume** stops or starts the animation, and is remembered.
 - **Rain** makes it rain in front of the wall on every display: **Drizzle**, **Steady** or
@@ -154,4 +155,7 @@ The code is under the MIT License ([LICENSE](LICENSE)). The photo of the green w
 (`assets-src/green-wall.jpg`, `scene/assets/wall.jpg` and the stills made from it) and
 Cefalo's name, logo and three-dot mark belong to Cefalo and are not covered by that license;
 they are used here with Cefalo's permission. Three.js 0.186.0 is bundled under its own MIT
-license (`scene/vendor/LICENSE`).
+license (`scene/vendor/LICENSE`). The leaves in the menu bar icon and the app's icon are Apple's
+`leaf.fill` symbol, drawn from the Mac's own symbols (they are not in this repository). Apple's
+terms do not allow its symbols in app icons, so the app icon's leaves must be replaced before
+the app is shared publicly.

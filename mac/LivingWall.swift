@@ -597,7 +597,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
 }
 
 /// `Cefalo Living Wall --check`: load the scene in a hidden web view, frozen at 10 s, and exit 0
-/// if it reports that it drew a real frame (and the app has its still for the desktop picture).
+/// if it reports that it drew a real frame (and the app has its still for the desktop picture
+/// and its icon).
 /// Used by the installer and mac/tests/run.sh.
 final class SceneCheck: NSObject, NSApplicationDelegate {
   private let messages = PageMessages()
@@ -610,6 +611,12 @@ final class SceneCheck: NSObject, NSApplicationDelegate {
     guard let still, CGSize(width: still.pixelsWide, height: still.pixelsHigh) == SceneStill.wallPixels else {
       Self.finish(false, "the app has no still of the whole wall for the desktop picture")
     }
+    // Its icon, also rendered by build.sh: every size macOS asks for, 16 to 1024 px.
+    let icon = NSImage(contentsOf: Bundle.main.resourceURL!.appendingPathComponent("AppIcon.icns"))
+    let sizes = Set(icon?.representations.map(\.pixelsWide) ?? [])
+    guard Bundle.main.object(forInfoDictionaryKey: "CFBundleIconFile") as? String == "AppIcon",
+      sizes.isSuperset(of: [16, 32, 64, 128, 256, 512, 1024])
+    else { Self.finish(false, "the app has no icon of every size (it has \(sizes.sorted()))") }
     let root = Bundle.main.resourceURL!.appendingPathComponent("scene")
     let frame = NSRect(x: 0, y: 0, width: 800, height: 520)
     let view = makeWebView(frame: frame, root: root, messages: messages)
@@ -840,8 +847,14 @@ enum LivingWall {
     let app = NSApplication.shared
     let arguments = CommandLine.arguments
     // Before anything reads preferences: the Controller's paused/motion start from them.
-    let checking = ["--check", "--check-saver", "--check-settings", "--render-still"].contains(where: arguments.contains)
+    let checking = ["--check", "--check-saver", "--check-settings", "--render-still", "--render-icon"].contains(where: arguments.contains)
     if !checking { Migration.importSettings() }
+    // `--render-icon <folder.iconset>`: the app's icon at every size, for build.sh's iconutil.
+    if let index = arguments.firstIndex(of: "--render-icon") {
+      let ok = index + 1 < arguments.count && AppIcon.writeIconset(to: URL(fileURLWithPath: arguments[index + 1]))
+      print(ok ? "Rendered the icon" : "Could not render the icon")
+      exit(ok ? 0 : 1)
+    }
     if arguments.contains("--restore-desktop-picture") {
       exit(DesktopPicture.restore() ? 0 : 1)
     }

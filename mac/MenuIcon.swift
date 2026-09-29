@@ -24,32 +24,52 @@ enum MenuIcon {
 
   /// Nil only if the system has no leaf.fill symbol.
   static func image() -> NSImage? {
-    guard let symbol = NSImage(systemSymbolName: "leaf.fill", accessibilityDescription: nil)?
-      .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 64, weight: .regular)),
-      let outline = drawnBounds(of: symbol)
-    else { return nil }
+    guard let leaf = leaf() else { return nil }
     let image = NSImage(size: size, flipped: true) { _ in
       guard let context = NSGraphicsContext.current?.cgContext else { return false }
       context.scaleBy(x: size.width / viewport.width, y: size.height / viewport.height)
       context.translateBy(x: -viewport.minX, y: -viewport.minY)
-      NSColor.black.setFill()
-      for dot in dots {
-        NSBezierPath(ovalIn: NSRect(x: dot.x - dotRadius, y: dot.y - dotRadius, width: 2 * dotRadius, height: 2 * dotRadius)).fill()
-      }
-      for leaf in leaves {
-        context.saveGState()
-        context.concatenate(leaf)
-        context.scaleBy(x: leafBox.width / outline.width, y: leafBox.height / outline.height)
-        context.translateBy(x: -outline.minX, y: -outline.minY)
-        symbol.draw(in: NSRect(origin: .zero, size: symbol.size), from: .zero, operation: .sourceOver, fraction: 1,
-          respectFlipped: true, hints: nil)
-        context.restoreGState()
-      }
+      drawMark(in: context, leaf: leaf, dots: [.black, .black, .black], leaves: .black)
       return true
     }
     image.isTemplate = true
     image.accessibilityDescription = "Cefalo Living Wall"
     return image
+  }
+
+  /// Apple's leaf and where it actually draws inside its image; nil only if the system has no
+  /// leaf.fill symbol.
+  static func leaf() -> (symbol: NSImage, outline: NSRect)? {
+    guard let symbol = NSImage(systemSymbolName: "leaf.fill", accessibilityDescription: nil)?
+      .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 64, weight: .regular)),
+      let outline = drawnBounds(of: symbol)
+    else { return nil }
+    return (symbol, outline)
+  }
+
+  /// Draws the mark on the grid (y down) into `context`, the current graphics context's: the
+  /// leaves in one colour, then the dots, top to bottom, over their stalks. The menu bar icon
+  /// draws it all in black; the app icon (AppIcon.swift) in Cefalo's colours.
+  static func drawMark(in context: CGContext, leaf: (symbol: NSImage, outline: NSRect), dots colours: [NSColor], leaves colour: NSColor) {
+    context.beginTransparencyLayer(auxiliaryInfo: nil)
+    for placed in leaves {
+      context.saveGState()
+      context.concatenate(placed)
+      context.scaleBy(x: leafBox.width / leaf.outline.width, y: leafBox.height / leaf.outline.height)
+      context.translateBy(x: -leaf.outline.minX, y: -leaf.outline.minY)
+      leaf.symbol.draw(in: NSRect(origin: .zero, size: leaf.symbol.size), from: .zero, operation: .sourceOver, fraction: 1,
+        respectFlipped: true, hints: nil)
+      context.restoreGState()
+    }
+    // The symbol draws black: this colours what it drew.
+    context.setBlendMode(.sourceAtop)
+    context.setFillColor(colour.cgColor)
+    context.fill(CGRect(origin: .zero, size: grid).insetBy(dx: -grid.width, dy: -grid.height))
+    context.endTransparencyLayer()
+    for (dot, fill) in zip(dots, colours) {
+      fill.setFill()
+      NSBezierPath(ovalIn: NSRect(x: dot.x - dotRadius, y: dot.y - dotRadius, width: 2 * dotRadius, height: 2 * dotRadius)).fill()
+    }
   }
 
   /// Where the symbol actually draws inside its image (y down, points): the icon places the
