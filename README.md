@@ -7,7 +7,8 @@ butterflies drop by now and then, a light sweeps along the logo, and it can rain
 It is the real photo with a layer of 3D leaves in front, rendered with Three.js in a
 web view that sits behind your desktop icons. Everything runs locally and offline.
 
-> This repository contains Cefalo's photo and logo. Keep it private.
+> The photo of the green wall, with the Cefalo logo on it, belongs to
+> [Cefalo](https://www.cefalo.com) and is used with their permission.
 
 ## Install
 
@@ -147,4 +148,10 @@ ceiling (the camera caught it sloping down to the right) and lifts the dark corn
 of the way. The command prints where the downlights ended up; copy that line into
 `LIGHTS` in `scene/src/wall.js`.
 
-Three.js 0.186.0 is bundled under its MIT license (`scene/vendor/LICENSE`).
+## License
+
+The code is under the MIT License ([LICENSE](LICENSE)). The photo of the green wall
+(`assets-src/green-wall.jpg`, `scene/assets/wall.jpg` and the stills made from it) and
+Cefalo's name, logo and three-dot mark belong to Cefalo and are not covered by that license;
+they are used here with Cefalo's permission. Three.js 0.186.0 is bundled under its own MIT
+license (`scene/vendor/LICENSE`).
