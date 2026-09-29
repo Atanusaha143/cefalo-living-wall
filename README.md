@@ -2,7 +2,7 @@
 
 The Cefalo green wall as a live macOS desktop wallpaper and screen saver. The leaves
 sway in the breeze, gusts roll across the wall, leaves bend away from your cursor,
-butterflies drop by now and then, and it can rain.
+butterflies drop by now and then, a light sweeps along the logo, and it can rain.
 
 It is the real photo with a layer of 3D leaves in front, rendered with Three.js in a
 web view that sits behind your desktop icons. Everything runs locally and offline.
@@ -38,7 +38,8 @@ Click the icon in the menu bar, Cefalo's three dots with two leaves opening from
   veil drifting in the air, and the roof's edge only drips; steady rain and a monsoon pour off
   the roof, knock and shake the leaves and lean together in the gusts, and a monsoon greys the
   view behind a veil. The leaves turn glossy and a mist dims the scene; they dry about a minute
-  after it stops. Remembered, and Off until you choose a mode.
+  after it stops. Butterflies stay away while it rains. Remembered, and Off until you choose
+  a mode.
 - **Motion** sets how fast and how far the leaves move: Gentle, Lively (the default) or
   Wild. Switching eases into the new level over about a second. It applies to every display
   and is remembered.
@@ -46,13 +47,13 @@ Click the icon in the menu bar, Cefalo's three dots with two leaves opening from
   - **Live Lock Screen** picks a hot corner, or **Off**: moving the pointer into that corner
     starts the screen saver, and your Mac locks behind it. It is the living wall only where
     Cefalo Living Wall is the chosen screen saver (Screen Saver Options…, for each display);
-    elsewhere the corner starts whichever screen saver is chosen. It shows the corner
-    that starts the screen saver now, even one set in System Settings; a corner already used
-    for something else (Quick Note, say) asks before it is replaced. The Dock restarts to take
-    the change (a brief flicker). Uninstalling clears a corner set here.
-  - **Screen Saver Options…** opens System Settings on the Screen Saver page: choose Cefalo
-    Living Wall there for each display (a Live Lock Screen corner starts whichever screen
-    saver is chosen), and its **Options…** set the screen saver's own Motion and Rain.
+    elsewhere the corner starts whichever screen saver is chosen. Only one corner starts the
+    screen saver: the pop-up shows it, even one set in System Settings, and **Off** clears it.
+    A corner already used for something else (Quick Note, say) asks before it is replaced. The
+    Dock restarts to take the change (a brief flicker). Uninstalling clears a corner set here.
+  - **Screen Saver Options…** opens System Settings where the screen saver is chosen: choose
+    Cefalo Living Wall there for each display, and its **Options…** set the screen saver's own
+    Motion and Rain.
 - **Quit** closes it until you next log in.
 
 Move the cursor over the wall to brush the leaves. A resting butterfly takes off if the
@@ -81,7 +82,8 @@ sh mac/uninstall.sh
 
 This stops the app (every running copy, including one you opened by hand), removes it, the
 screen saver and the login item (including any left from "Green Wall"), and puts back your
-previous desktop picture.
+previous desktop picture. Your settings are kept; `defaults delete local.cefalo-living-wall`
+clears them.
 
 ## FAQ
 
@@ -100,8 +102,8 @@ as a 16:9 monitor, shows its full width and crops mostly from the bottom, so the
 and its downlights stay clear of the menu bar.
 
 **Why is it not moving?** Open the menu: the first line says why (paused, covered by
-windows, screen locked, screen saver running). If Reduce Motion is on, it starts paused
-until you choose Resume.
+windows, screen locked or asleep, screen saver running, scene failed to load). If Reduce
+Motion is on, it starts paused until you choose Resume.
 
 **Where is the menu bar icon?** On a MacBook with a notch, macOS hides menu-bar icons that do
 not fit beside it. Quit or ⌘-drag away another icon to make room.
@@ -118,7 +120,7 @@ The screen saver logs to the system log: `log show --last 10m --predicate 'subsy
 
 ## Develop
 
-Node.js 20 or newer; there is nothing to install.
+Node.js 22 or newer; there is nothing to install.
 
 ```sh
 npm start            # browser preview at http://127.0.0.1:8080/scene/
