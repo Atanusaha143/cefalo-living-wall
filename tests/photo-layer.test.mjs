@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import * as THREE from '../scene/vendor/three.module.js';
 import { createRandom } from '../scene/src/random.js';
 import { SHADER_TIME_WRAP } from '../scene/src/wind.js';
-import { createPhotoLayer, DRIFT_SPEEDS } from '../scene/src/photo-layer.js';
+import { createPhotoLayer, DRIFT_SPEEDS, SWAY_REACH } from '../scene/src/photo-layer.js';
+import { LOGO_AREA } from '../scene/src/logo-mask.js';
 
 test('every noise drift completes whole turns per shader-time wrap', () => {
   for (const speed of Object.values(DRIFT_SPEEDS)) {
@@ -38,4 +39,17 @@ test('rain turns the photo overcast', () => {
   assert.equal(layer.mesh.material.uniforms.uOvercast.value, 0.6);
   layer.update(2, noGust);
   assert.equal(layer.mesh.material.uniforms.uOvercast.value, 0, 'clear by default');
+});
+
+test('near the logo the wind reads how free the photo is from a texture over the logo area', () => {
+  const freedom = { data: new Float32Array(LOGO_AREA.width * LOGO_AREA.height).fill(0.5), width: LOGO_AREA.width, height: LOGO_AREA.height };
+  const u = createPhotoLayer(new THREE.Texture(), createRandom(1), freedom).mesh.material.uniforms;
+  assert.equal(u.uFreedom.value.image.width, LOGO_AREA.width);
+  assert.equal(u.uFreedom.value.image.data[0], 128);
+  assert.deepEqual(u.uArea.value.toArray(), [LOGO_AREA.x0, LOGO_AREA.y0, LOGO_AREA.width, LOGO_AREA.height]);
+});
+
+test('the farthest the wind and the cursor can move the photo, for the logo to stay clear of', () => {
+  // noise up to 1.5 per axis, at full sway and the strongest gust (1.2), at Wild (capped at 1.3), plus the ripple
+  assert.ok(Math.abs(SWAY_REACH - (1.5 * Math.SQRT2 * (3 + 1.5 + 2.5 * 1.2) * 1.3 + 3)) < 1e-9);
 });

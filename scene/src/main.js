@@ -10,7 +10,8 @@ import { createButterflyBrain } from './butterfly-brain.js';
 import { createPhotoLayer } from './photo-layer.js';
 import { createLeaves } from './leaves.js';
 import { createLights } from './lights.js';
-import { createLogoGlow } from './logo-glow.js';
+import { createLogoGlow, haloMask } from './logo-glow.js';
+import { LOGO_AREA, swayFreedom } from './logo-mask.js';
 import { createButterflies } from './butterflies.js';
 import { createRainWeather, stormBoost, knockCount, impact } from './rain-weather.js';
 import { createRain } from './rain.js';
@@ -47,6 +48,15 @@ function photoPixels(image, width = 400) {
   return ctx.getImageData(0, 0, width, height);
 }
 
+/** The photo's pixels over the logo area, one per wall unit (for the glow's halo and the wind's
+ *  freedom round the letters). */
+function logoPixels(image) {
+  const { x0, y0, width, height } = LOGO_AREA, sx = image.width / WALL_W, sy = image.height / WALL_H;
+  const ctx = Object.assign(document.createElement('canvas'), { width, height }).getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(image, x0 * sx, y0 * sy, width * sx, height * sy, 0, 0, width, height);
+  return ctx.getImageData(0, 0, width, height).data;
+}
+
 // Smoke runs exercise the queue: these calls arrive before the scene exists.
 if (SMOKE) {
   window.wallSetMaxFps(15); window.wallSetPaused(false);
@@ -70,12 +80,13 @@ async function boot() {
   const random = createRandom(SEED);
   const wind = createWind(random);
   const clock = createMotionClock(pending.motion);   // the wind runs on the Motion setting's clock
-  const photoLayer = createPhotoLayer(photo, random);
+  const logo = logoPixels(photo.image), area = (data) => ({ data, width: LOGO_AREA.width, height: LOGO_AREA.height });
+  const photoLayer = createPhotoLayer(photo, random, area(swayFreedom(logo, LOGO_AREA.width, LOGO_AREA.height)));
   const leafData = generateLeaves(random);
   const springs = createSprings(leafData);
   const leaves = createLeaves(leafData, photoPixels(photo.image), random, springs);
   const lights = createLights(random);
-  const glow = createLogoGlow(photo);
+  const glow = createLogoGlow(photo, area(haloMask(logo, LOGO_AREA.width, LOGO_AREA.height)));
   const butterflies = createButterflies();
   const weather = createRainWeather(createRandom(SEED + 2));
   const rain = createRain(createRandom(SEED + 3));
