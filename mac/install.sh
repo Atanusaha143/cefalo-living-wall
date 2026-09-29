@@ -1,8 +1,7 @@
 #!/bin/sh
 # Build Cefalo Living Wall and its screen saver, check that both run in WebKit, install the
 # app in ~/Applications and the screen saver in ~/Library/Screen Savers, and start the app
-# now and at every login. Rerun to update. Replaces an install from when it was called
-# "Green Wall" (its settings carry over on first launch).
+# now and at every login. Rerun to update.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 label=local.cefalo-living-wall
@@ -21,11 +20,6 @@ echo "Checking the screen saver runs..."
 "$build/Cefalo Living Wall.app/Contents/MacOS/Cefalo Living Wall" --check-saver "$build/Cefalo Living Wall.saver"
 echo "Checking the Settings window..."
 "$build/Cefalo Living Wall.app/Contents/MacOS/Cefalo Living Wall" --check-settings
-
-# The old name: stop it and remove its app and login item.
-launchctl bootout "$domain/local.green-wall" 2>/dev/null || true
-rm -f "$HOME/Library/LaunchAgents/local.green-wall.plist"
-rm -rf "$HOME/Applications/Green Wall.app"
 
 launchctl bootout "$domain/$label" 2>/dev/null || true
 # A copy opened by hand rather than by the login item keeps drawing the old code over the

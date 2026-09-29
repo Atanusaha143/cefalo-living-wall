@@ -16,6 +16,13 @@ if ! command -v swiftc >/dev/null; then
 	exit 1
 fi
 
+# Each bundle's own copy of the scene, without Finder's .DS_Store files. No trailing slash on
+# the source: with one, cp copies the folder's contents instead.
+copy_scene() {
+	cp -R "$project/scene" "$1/Contents/Resources/"
+	find "$1/Contents/Resources/scene" -name .DS_Store -delete
+}
+
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 # Built for this Mac's own architecture; the binary never leaves it.
@@ -23,8 +30,7 @@ swiftc -O -parse-as-library -swift-version 5 -module-name LivingWall -target "$t
 	-o "$app/Contents/MacOS/Cefalo Living Wall" "$here/LivingWall.swift" "$here/SceneWebView.swift" \
 	"$here/Coverage.swift" "$here/HostLogic.swift" "$here/MenuIcon.swift" "$here/HotCorner.swift" "$here/SettingsWindow.swift" "$here/SceneStill.swift" "$here/AppIcon.swift" -framework Cocoa -framework WebKit -framework ScreenSaver
 cp "$here/Info.plist" "$app/Contents/Info.plist"
-# No trailing slash on the source: with one, cp copies the folder's contents instead.
-cp -R "$project/scene" "$app/Contents/Resources/"
+copy_scene "$app"
 # The scene's first frame, with the leaves it adds to the photo: the desktop picture, and the
 # screen saver's still while the scene loads. Rendered before signing, which seals the bundle.
 "$app/Contents/MacOS/Cefalo Living Wall" --render-still "$app/Contents/Resources/still.jpg"
@@ -45,7 +51,7 @@ swiftc -O -parse-as-library -swift-version 5 -module-name LivingWallSaver -targe
 	"$here/Saver.swift" "$here/SaverSettings.swift" "$here/SceneWebView.swift" "$here/HostLogic.swift" \
 	-framework Cocoa -framework WebKit -framework ScreenSaver
 cp "$here/Saver-Info.plist" "$saver/Contents/Info.plist"
-cp -R "$project/scene" "$saver/Contents/Resources/"
+copy_scene "$saver"
 cp "$app/Contents/Resources/still.jpg" "$saver/Contents/Resources/"
 codesign --force --sign - "$saver" >/dev/null 2>&1 || echo "note: ad-hoc signing failed for the screen saver" >&2
 echo "Built $saver"

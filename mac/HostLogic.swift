@@ -26,8 +26,8 @@ func statusLine(failed: Bool, power: PowerState, paused: Bool, rate: Int) -> Str
 }
 
 /// The desktop pictures to remember (screen ID → URL string) before showing the still:
-/// what was saved before stays, none of our own stills (current or from the Green Wall
-/// days) is ever recorded, and a screen whose picture cannot be read is skipped.
+/// what was saved before stays, none of our own stills is ever recorded, and a screen whose
+/// picture cannot be read is skipped.
 func picturesToSave(current: [String: URL?], saved: [String: String], ours: [URL]) -> [String: String] {
   let ourPaths = Set(ours.map { $0.standardizedFileURL.path })
   var out = saved
@@ -57,18 +57,6 @@ let motionLevels: [(level: Int, name: String)] = [(3, "Gentle"), (4, "Lively"), 
 func motionLevel(stored: Int?) -> Int {
   guard let stored else { return 4 }
   return min(motionLevels[motionLevels.count - 1].level, max(motionLevels[0].level, stored))
-}
-
-/// The preferences carried over from the old "Green Wall" app: only these keys, and only
-/// those the new app does not have yet.
-let importedSettingKeys = ["paused", "motion", "previousDesktopPictures"]
-
-func settingsToImport(old: [String: Any], new: [String: Any]) -> [String: Any] {
-  var out: [String: Any] = [:]
-  for key in importedSettingKeys where new[key] == nil {
-    if let value = old[key] { out[key] = value }
-  }
-  return out
 }
 
 /// Whether to offer, once, to open Screen Saver settings.

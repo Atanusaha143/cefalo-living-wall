@@ -29,5 +29,10 @@ if [ ! -x "$saver/Contents/MacOS/Cefalo Living Wall" ]; then
 	echo "FAIL: build.sh did not build the screen saver" >&2
 	exit 1
 fi
+finder=$(find "$build/Cefalo Living Wall.app" "$saver" -name .DS_Store)
+if [ -n "$finder" ]; then
+	echo "FAIL: the bundles hold Finder's .DS_Store files: $finder" >&2
+	exit 1
+fi
 "$build/Cefalo Living Wall.app/Contents/MacOS/Cefalo Living Wall" --check-saver "$saver"
 "$build/Cefalo Living Wall.app/Contents/MacOS/Cefalo Living Wall" --check-settings

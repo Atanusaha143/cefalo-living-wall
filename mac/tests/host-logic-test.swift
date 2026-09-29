@@ -36,15 +36,13 @@ enum HostLogicTest {
     check(motionLevel(stored: 1) == 3 && motionLevel(stored: 2) == 3, "a Calm or Gentle saved by a five-level version reads as Gentle")
     check(motionLevel(stored: 0) == 3 && motionLevel(stored: 9) == 5, "a stored level out of range is clamped")
 
-    let still = URL(fileURLWithPath: "/Users/me/Library/Application Support/Cefalo Living Wall/still.jpg")
-    let oldStill = URL(fileURLWithPath: "/Users/me/Library/Application Support/Green Wall/still.jpg")
+    let still = URL(fileURLWithPath: "/Users/me/Library/Application Support/Cefalo Living Wall/still-a.jpg")
     let mine = URL(fileURLWithPath: "/Users/me/Pictures/beach.jpg")
     let other = URL(fileURLWithPath: "/Users/me/Pictures/mountain.jpg")
     let saved = picturesToSave(
-      current: ["1": mine, "2": still, "3": nil, "4": other, "5": oldStill], saved: ["4": mine.absoluteString], ours: [still, oldStill])
+      current: ["1": mine, "2": still, "3": nil, "4": other], saved: ["4": mine.absoluteString], ours: [still])
     check(saved["1"] == mine.absoluteString, "a screen's own picture is remembered")
     check(saved["2"] == nil, "our own still is never remembered as the user's picture")
-    check(saved["5"] == nil, "nor is the old Green Wall still")
     check(saved["3"] == nil, "a screen with no readable picture is skipped")
     check(saved["4"] == mine.absoluteString, "a picture remembered earlier is never overwritten")
 
@@ -54,14 +52,6 @@ enum HostLogicTest {
     check(restore["9"] == mine, "a screen whose ID changed falls back to a saved picture that still exists")
     check(picturesToRestore(screens: ["1"], saved: ["1": other.absoluteString], exists: exists).isEmpty,
       "a saved picture whose file is gone is not restored")
-    // Migration from Green Wall: absent keys only, never overwriting, nothing unrelated.
-    let imported = settingsToImport(
-      old: ["paused": true, "motion": 2, "previousDesktopPictures": ["1": mine.absoluteString], "AppleLanguages": ["en"]],
-      new: ["motion": 5])
-    check(imported["paused"] as? Bool == true, "the pause choice carries over")
-    check(imported["motion"] == nil, "a setting the new app already has is not overwritten")
-    check((imported["previousDesktopPictures"] as? [String: String])?["1"] == mine.absoluteString, "the original wallpaper carries over")
-    check(imported["AppleLanguages"] == nil, "unrelated preferences are ignored")
 
     check(shouldOfferScreenSaver(alreadyShown: false, saverInstalled: true), "the prompt is offered once the saver is installed")
     check(!shouldOfferScreenSaver(alreadyShown: true, saverInstalled: true), "never twice")

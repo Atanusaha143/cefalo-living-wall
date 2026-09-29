@@ -176,35 +176,6 @@ final class Wallpaper: NSObject, WKNavigationDelegate {
   }
 }
 
-/// Carrying the user's settings and files over from the app's old name, "Green Wall".
-enum Migration {
-  static let oldDomain = "local.green-wall"
-  static let doneKey = "migratedFromGreenWall"
-  static var oldFolder: URL { supportFolder("Green Wall") }
-  static var oldStill: URL { oldFolder.appendingPathComponent("still.jpg") }
-
-  /// Once: copy the pause choice, Motion level and remembered original wallpaper from the
-  /// old preferences, never overwriting what the new app already has.
-  static func importSettings() {
-    let defaults = UserDefaults.standard
-    guard !defaults.bool(forKey: doneKey) else { return }
-    let old = defaults.persistentDomain(forName: oldDomain) ?? [:]
-    let new = defaults.persistentDomain(forName: Bundle.main.bundleIdentifier ?? "local.cefalo-living-wall") ?? [:]
-    let imported = settingsToImport(old: old, new: new)
-    for (key, value) in imported { defaults.set(value, forKey: key) }
-    defaults.set(true, forKey: doneKey)
-    if !imported.isEmpty { log("carried over from Green Wall: \(imported.keys.sorted())") }
-  }
-
-  /// The old support folder and log, once the new still is on the desktop.
-  static func removeOldFiles() {
-    let logs = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0].appendingPathComponent("Logs")
-    for url in [oldFolder, logs.appendingPathComponent("Green Wall.log")] where FileManager.default.fileExists(atPath: url.path) {
-      try? FileManager.default.removeItem(at: url)
-    }
-  }
-}
-
 func supportFolder(_ name: String) -> URL {
   FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent(name)
 }
@@ -241,11 +212,8 @@ enum DockCorners {
 enum DesktopPicture {
   static let savedKey = "previousDesktopPictures"
   static var folder: URL { supportFolder("Cefalo Living Wall") }
-  /// The still under each of its names (stillNames, used in turn), and the one name before them.
+  /// The still under each of its names (stillNames, used in turn): never the user's own picture.
   static var stills: [URL] { stillNames.map { folder.appendingPathComponent($0) } }
-  static var singleStill: URL { folder.appendingPathComponent("still.jpg") }
-  /// Every still this app has ever shown: never the user's own picture.
-  static var ours: [URL] { stills + [singleStill, Migration.oldStill] }
 
   static func id(_ screen: NSScreen) -> String {
     "\((screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.intValue ?? 0)"
@@ -273,7 +241,7 @@ enum DesktopPicture {
     // process died in between, the next launch would only see our own still.
     let previous = UserDefaults.standard.dictionary(forKey: savedKey) as? [String: String] ?? [:]
     let current = Dictionary(NSScreen.screens.map { (id($0), NSWorkspace.shared.desktopImageURL(for: $0)) }) { a, _ in a }
-    UserDefaults.standard.set(picturesToSave(current: current, saved: previous, ours: ours), forKey: savedKey)
+    UserDefaults.standard.set(picturesToSave(current: current, saved: previous, ours: stills), forKey: savedKey)
     for screen in NSScreen.screens {
       do {
         try NSWorkspace.shared.setDesktopImageURL(
@@ -283,11 +251,6 @@ enum DesktopPicture {
         log("could not set the desktop picture: \(error.localizedDescription)")
       }
     }
-    let single = singleStill.standardizedFileURL.path
-    if !NSScreen.screens.contains(where: { NSWorkspace.shared.desktopImageURL(for: $0)?.standardizedFileURL.path == single }) {
-      try? files.removeItem(at: singleStill)   // replaced by stillNames
-    }
-    Migration.removeOldFiles()
   }
 
   /// Put back the pictures saved by install(). Returns false, keeping the record, if any
@@ -300,7 +263,7 @@ enum DesktopPicture {
       guard let url = targets[id(screen)] else { continue }
       try? NSWorkspace.shared.setDesktopImageURL(url, for: screen, options: [:])
     }
-    let ourPaths = Set(ours.map { $0.standardizedFileURL.path })
+    let ourPaths = Set(stills.map { $0.standardizedFileURL.path })
     let stuck = NSScreen.screens.filter {
       NSWorkspace.shared.desktopImageURL(for: $0).map { ourPaths.contains($0.standardizedFileURL.path) } ?? false
     }
@@ -846,9 +809,6 @@ enum LivingWall {
   static func main() {
     let app = NSApplication.shared
     let arguments = CommandLine.arguments
-    // Before anything reads preferences: the Controller's paused/motion start from them.
-    let checking = ["--check", "--check-saver", "--check-settings", "--render-still", "--render-icon"].contains(where: arguments.contains)
-    if !checking { Migration.importSettings() }
     // `--render-icon <folder.iconset>`: the app's icon at every size, for build.sh's iconutil.
     if let index = arguments.firstIndex(of: "--render-icon") {
       let ok = index + 1 < arguments.count && AppIcon.writeIconset(to: URL(fileURLWithPath: arguments[index + 1]))
