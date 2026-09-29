@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 /// Every reason the wall may not draw, kept apart: waking the display behind the lock
@@ -83,6 +84,30 @@ func shouldOfferScreenSaver(alreadyShown: Bool, saverInstalled: Bool) -> Bool {
 /// host (e.g. `--check-saver`).
 func saverShouldRun(isPreview: Bool, sessionRunning: Bool, locked: Bool, screensAsleep: Bool, inHost: Bool) -> Bool {
   isPreview || !inHost || ((sessionRunning || locked) && !screensAsleep)
+}
+
+/// Where the whole wall sits in a view (AppKit coordinates, y up) when framed as the scene
+/// frames it: scene/src/fit.js coverFit, a cover fit that crops a wide view mostly from the
+/// bottom. The screen saver draws its still of the wall there while the scene loads, so the
+/// scene fades in over the same picture. Keep in step with fit.js and scene/src/wall.js.
+func wallPhotoFrame(in view: CGSize) -> CGRect {
+  let wall = CGSize(width: 1600, height: 1067), anchorY: CGFloat = 0.1
+  let scale = max(view.width / wall.width, view.height / wall.height)
+  let size = CGSize(width: wall.width * scale, height: wall.height * scale)
+  let top = (size.height - view.height) * anchorY   // cropped above the view
+  return CGRect(x: (view.width - size.width) / 2, y: view.height + top - size.height, width: size.width, height: size.height)
+}
+
+/// The desktop still's names, used in turn. macOS caches a desktop picture by its path and the
+/// moment it was chosen: set again under the same path, a changed still would never show (the
+/// lock screen kept the bare photo, 2026-09-29). So a changed still goes under a name no screen
+/// shows. Before these, the still was always "still.jpg".
+let stillNames = ["still-a.jpg", "still-b.jpg"]
+
+/// The name to show the still under: the one whose file already holds exactly this still, else
+/// the first that no screen shows now (the first name if both are).
+func stillName(holding: String?, shown: Set<String>) -> String {
+  holding ?? stillNames.first { !shown.contains($0) } ?? stillNames[0]
 }
 
 /// System Settings' page for choosing the screen saver: macOS 26 moved it into Wallpaper; up to

@@ -18,9 +18,10 @@ From the project folder:
 sh mac/install.sh
 ```
 
-The script builds the app and the screen saver, checks that both run, installs the app
+The script builds the app and the screen saver, renders a still of the wall's first
+frame (the photo with the leaves the scene adds), checks that both run, installs the app
 at `~/Applications/Cefalo Living Wall.app` and the screen saver in
-`~/Library/Screen Savers`, sets the photo as your desktop picture (your current one is
+`~/Library/Screen Savers`, sets that still as your desktop picture (your current one is
 remembered), and starts the app now and at every login. macOS may show a "background
 item added" notification. Rerun the same command to update: it quits any copy that is
 still running, including one you opened by hand.
@@ -68,11 +69,15 @@ than one display, macOS keeps a choice per display: pick the display at the top 
 page and choose it for each one. It plays the living wall while the screen saver runs,
 and the wallpaper underneath rests meanwhile. **Options…** next to it sets its own Motion
 level (Lively by default) and its own Rain mode (Off by default). Between runs nothing draws.
+When it starts, the still of the wall shows at once and comes alive about two seconds
+later, fading into the moving wall: macOS starts a fresh copy of the screen saver for each
+display, and the scene takes that long to load. The still is the wall's own first frame,
+so only the motion changes.
 
 It keeps playing on the lock screen: when the screen saver starts (after inactivity, from a
 hot corner or with `open -a ScreenSaverEngine`), macOS 26 locks the Mac behind it and the wall
 goes on moving until you wake it; it rests as soon as the displays sleep. Locking straight
-away (the power button, ⌃⌘Q) shows the still photo instead: macOS starts no screen saver then.
+away (the power button, ⌃⌘Q) shows the still instead: macOS starts no screen saver then.
 
 ## Uninstall
 
@@ -109,7 +114,7 @@ Motion is on, it starts paused until you choose Resume.
 not fit beside it. Quit or ⌘-drag away another icon to make room.
 
 **Can the lock screen move?** Yes, when the screen saver starts first: macOS locks behind
-it and the wall keeps moving. Locking with the power button or ⌃⌘Q shows the still photo,
+it and the wall keeps moving. Locking with the power button or ⌃⌘Q shows the still,
 because macOS starts no screen saver then. To lock with the live wall, choose a corner in
 **Settings… ▸ Live Lock Screen** and move the pointer there, and set System Settings ▸ Lock
 Screen ▸ Require password after screen saver begins to Immediately.

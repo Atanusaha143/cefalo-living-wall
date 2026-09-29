@@ -236,26 +236,38 @@ enum DockCorners {
   }
 }
 
-/// The still photo behind the live layer, and the user's own picture to restore later.
+/// The still behind the live layer (the scene's first frame, SceneStill.swift), and the user's
+/// own picture to restore later.
 enum DesktopPicture {
   static let savedKey = "previousDesktopPictures"
   static var folder: URL { supportFolder("Cefalo Living Wall") }
-  static var still: URL { folder.appendingPathComponent("still.jpg") }
+  /// The still under each of its names (stillNames, used in turn), and the one name before them.
+  static var stills: [URL] { stillNames.map { folder.appendingPathComponent($0) } }
+  static var singleStill: URL { folder.appendingPathComponent("still.jpg") }
   /// Every still this app has ever shown: never the user's own picture.
-  static var ours: [URL] { [still, Migration.oldStill] }
+  static var ours: [URL] { stills + [singleStill, Migration.oldStill] }
 
   static func id(_ screen: NSScreen) -> String {
     "\((screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.intValue ?? 0)"
   }
 
-  /// Copy the photo out of the bundle, remember each screen's current picture (once,
-  /// and never our own), then show the photo as the desktop picture.
+  /// Copy the still out of the bundle, under a name macOS will show afresh if it has changed
+  /// (stillName), remember each screen's current picture (once, and never our own), then show
+  /// the still as the desktop picture.
   static func install(photo: URL) {
-    try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-    try? FileManager.default.removeItem(at: still)
-    do { try FileManager.default.copyItem(at: photo, to: still) } catch {
-      log("could not copy the still picture: \(error.localizedDescription)")
-      return
+    let files = FileManager.default
+    try? files.createDirectory(at: folder, withIntermediateDirectories: true)
+    let onScreen = Set(NSScreen.screens.compactMap { NSWorkspace.shared.desktopImageURL(for: $0)?.standardizedFileURL.path })
+    let holding = stills.first { files.contentsEqual(atPath: $0.path, andPath: photo.path) }
+    let shown = stills.filter { onScreen.contains($0.standardizedFileURL.path) }.map(\.lastPathComponent)
+    let still = folder.appendingPathComponent(stillName(holding: holding?.lastPathComponent, shown: Set(shown)))
+    if still != holding {
+      try? files.removeItem(at: still)
+      do { try files.copyItem(at: photo, to: still) } catch {
+        log("could not copy the still picture: \(error.localizedDescription)")
+        return
+      }
+      log("desktop still: \(still.lastPathComponent)")
     }
     // Remember the user's pictures, and persist that, before changing anything: if the
     // process died in between, the next launch would only see our own still.
@@ -270,6 +282,10 @@ enum DesktopPicture {
       } catch {
         log("could not set the desktop picture: \(error.localizedDescription)")
       }
+    }
+    let single = singleStill.standardizedFileURL.path
+    if !NSScreen.screens.contains(where: { NSWorkspace.shared.desktopImageURL(for: $0)?.standardizedFileURL.path == single }) {
+      try? files.removeItem(at: singleStill)   // replaced by stillNames
     }
     Migration.removeOldFiles()
   }
@@ -327,7 +343,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     ?? NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
 
   func applicationDidFinishLaunching(_ note: Notification) {
-    DesktopPicture.install(photo: root.appendingPathComponent("assets/wall.jpg"))
+    DesktopPicture.install(photo: Bundle.main.resourceURL!.appendingPathComponent("still.jpg"))
     build()
     addMenu()
     NotificationCenter.default.addObserver(
@@ -581,13 +597,19 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
 }
 
 /// `Cefalo Living Wall --check`: load the scene in a hidden web view, frozen at 10 s, and exit 0
-/// if it reports that it drew a real frame. Used by the installer and mac/tests/run.sh.
+/// if it reports that it drew a real frame (and the app has its still for the desktop picture).
+/// Used by the installer and mac/tests/run.sh.
 final class SceneCheck: NSObject, NSApplicationDelegate {
   private let messages = PageMessages()
   private var window: NSWindow?
   private var wall: Wallpaper?
 
   func applicationDidFinishLaunching(_ note: Notification) {
+    // The desktop picture: the still of the scene's first frame, rendered by build.sh.
+    let still = NSImage(contentsOf: Bundle.main.resourceURL!.appendingPathComponent("still.jpg"))?.representations.first
+    guard let still, CGSize(width: still.pixelsWide, height: still.pixelsHigh) == SceneStill.wallPixels else {
+      Self.finish(false, "the app has no still of the whole wall for the desktop picture")
+    }
     let root = Bundle.main.resourceURL!.appendingPathComponent("scene")
     let frame = NSRect(x: 0, y: 0, width: 800, height: 520)
     let view = makeWebView(frame: frame, root: root, messages: messages)
@@ -657,8 +679,9 @@ final class SceneCheck: NSObject, NSApplicationDelegate {
 
 /// `Cefalo Living Wall --check-saver <path>`: load the built screen saver into this process,
 /// show a full-screen view and a thumbnail preview in hidden windows, and exit 0 only if both
-/// reach `ready` and run at 30 and 15 fps with the saver's Motion option. Used by the
-/// installer and mac/tests/run.sh.
+/// show the scene's first frame as a still while the scene loads, then reach `ready`, fade the
+/// scene in and run at 30 and 15 fps with the saver's Motion option. Used by the installer and
+/// mac/tests/run.sh.
 final class SaverCheck: NSObject, NSApplicationDelegate {
   private var windows: [NSWindow] = []
   private var views: [NSView] = []
@@ -672,6 +695,7 @@ final class SaverCheck: NSObject, NSApplicationDelegate {
     else { Self.finish(false, "could not load the screen saver bundle") }
     let motion = motionLevel(
       stored: ScreenSaverDefaults(forModuleWithName: "local.cefalo-living-wall.saver")?.object(forKey: "motion") as? Int)
+    var polls: [() -> Void] = []
     for isPreview in [false, true] {
       let frame = NSRect(x: 0, y: 0, width: isPreview ? 320 : 1200, height: isPreview ? 200 : 750)
       guard let view = saverClass.init(frame: frame, isPreview: isPreview) else { Self.finish(false, "the saver view did not initialise") }
@@ -683,12 +707,17 @@ final class SaverCheck: NSObject, NSApplicationDelegate {
       view.startAnimation()
       windows.append(window)
       views.append(view)
-      let fps = isPreview ? 15 : 30
-      poll(view, name: isPreview ? "preview" : "full screen", tries: 60) {
-        $0.contains("\"running\":true") && $0.contains("\"maxFps\":\(fps)") && $0.contains("\"motion\":\(motion)")
-          && Self.drawn($0) > 10   // really animating, not just ready
+      let name = isPreview ? "preview" : "full screen", fps = isPreview ? 15 : 30
+      checkLoading(view, name: name)
+      watchFade(view, name: name)
+      polls.append {
+        self.poll(view, name: name, tries: 60) {
+          $0.contains("\"running\":true") && $0.contains("\"maxFps\":\(fps)") && $0.contains("\"motion\":\(motion)")
+            && Self.drawn($0) > 10   // really animating, not just ready
+        }
       }
     }
+    checkStill(views[0], scene: bundle.resourceURL!.appendingPathComponent("scene")) { polls.forEach { $0() } }
   }
 
   private func poll(_ view: NSView, name: String, tries: Int, until test: @escaping (String) -> Bool) {
@@ -698,7 +727,9 @@ final class SaverCheck: NSObject, NSApplicationDelegate {
         Self.finish(false, "the \(name) saver shows no scene")
       }
       web.evaluateJavaScript("typeof wallState === 'function' ? JSON.stringify(wallState()) : ''") { value, _ in
-        guard let state = value as? String, test(state) else {
+        // Faded in all the way (on screen, not just the fade's target): the photo no longer shows.
+        let shown = web.layer?.presentation()?.opacity ?? Float(web.alphaValue)
+        guard let state = value as? String, test(state), shown > 0.999 else {
           return self.poll(view, name: name, tries: tries - 1, until: test)
         }
         print("Saver \(name) runs: \(state.prefix(90))…")
@@ -724,6 +755,74 @@ final class SaverCheck: NSObject, NSApplicationDelegate {
     }
   }
 
+  /// While the scene loads the saver keeps the page (white until it has painted) out of sight,
+  /// so the still it draws underneath shows.
+  private func checkLoading(_ view: NSView, name: String) {
+    guard let web = view.subviews.compactMap({ $0 as? WKWebView }).first else { Self.finish(false, "the \(name) saver shows no scene") }
+    if web.alphaValue != 0 { Self.finish(false, "the \(name) saver shows the page before it is ready: a white screen") }
+  }
+
+  /// The still under the loading scene is the scene's own first frame, framed as the scene frames
+  /// it on this view, with the leaves the scene adds (the bare photo lacks them), so nothing
+  /// changes but the motion when the scene fades in.
+  private func checkStill(_ view: NSView, scene: URL, then next: @escaping () -> Void) {
+    let pixels = view.convertToBacking(view.bounds).size, points = view.bounds.size
+    SceneStill.render(root: scene, pixels: pixels) { first in
+      guard let first else { Self.finish(false, "could not render the scene's first frame to compare the still with") }
+      let still = Self.bitmap(pixels: pixels, points: points) { view.draw(view.bounds) }
+      let frame = Self.bitmap(pixels: pixels, points: points) {
+        NSImage(cgImage: first, size: points).draw(in: NSRect(origin: .zero, size: points))
+      }
+      let difference = Self.difference(still, frame)
+      guard difference < 0.02 else {
+        Self.finish(false, String(format: "the saver's still is not the scene's first frame (difference %.3f)", difference))
+      }
+      print(String(format: "Saver still matches the scene's first frame (difference %.3f)", difference))
+      next()
+    }
+  }
+
+  /// What `draw` paints into an RGBA bitmap `pixels` big, spanning `points`.
+  static func bitmap(pixels: CGSize, points: CGSize, draw: () -> Void) -> NSBitmapImageRep {
+    let rep = NSBitmapImageRep(
+      bitmapDataPlanes: nil, pixelsWide: Int(pixels.width), pixelsHigh: Int(pixels.height), bitsPerSample: 8,
+      samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+    rep.size = points
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+    draw()
+    NSGraphicsContext.restoreGraphicsState()
+    return rep
+  }
+
+  /// The mean difference between two bitmaps of one size, in grey, 0 to 1 (every 4th pixel each way).
+  static func difference(_ a: NSBitmapImageRep, _ b: NSBitmapImageRep) -> Double {
+    guard let pa = a.bitmapData, let pb = b.bitmapData else { return 1 }
+    var total = 0, count = 0
+    for y in stride(from: 0, to: a.pixelsHigh, by: 4) {
+      for x in stride(from: 0, to: a.pixelsWide, by: 4) {
+        let i = y * a.bytesPerRow + x * 4, j = y * b.bytesPerRow + x * 4
+        total += abs(Int(pa[i]) + Int(pa[i + 1]) + Int(pa[i + 2]) - Int(pb[j]) - Int(pb[j + 1]) - Int(pb[j + 2]))
+        count += 1
+      }
+    }
+    return Double(total) / Double(max(1, count) * 3 * 255)
+  }
+
+  /// Once ready, the scene fades in over the photo instead of cutting to it: AppKit sets the
+  /// web view's alpha to 1 at once and animates its layer's opacity.
+  private func watchFade(_ view: NSView, name: String, tries: Int = 600) {
+    guard tries > 0 else { Self.finish(false, "the \(name) saver never showed the scene") }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+      guard let web = view.subviews.compactMap({ $0 as? WKWebView }).first else { Self.finish(false, "the \(name) saver shows no scene") }
+      guard web.alphaValue > 0 else { return self.watchFade(view, name: name, tries: tries - 1) }
+      guard let fade = web.layer?.animation(forKey: "opacity"), fade.duration >= 1 else {
+        Self.finish(false, "the \(name) saver cuts to the scene instead of fading it in")
+      }
+      print("Saver \(name) fades the scene in over \(fade.duration) s")
+    }
+  }
+
   static func drawn(_ state: String) -> Int {
     guard let range = state.range(of: #""drawn":(\d+)"#, options: .regularExpression) else { return 0 }
     return Int(state[range].dropFirst(8)) ?? 0
@@ -741,7 +840,7 @@ enum LivingWall {
     let app = NSApplication.shared
     let arguments = CommandLine.arguments
     // Before anything reads preferences: the Controller's paused/motion start from them.
-    let checking = ["--check", "--check-saver", "--check-settings"].contains(where: arguments.contains)
+    let checking = ["--check", "--check-saver", "--check-settings", "--render-still"].contains(where: arguments.contains)
     if !checking { Migration.importSettings() }
     if arguments.contains("--restore-desktop-picture") {
       exit(DesktopPicture.restore() ? 0 : 1)
@@ -749,6 +848,7 @@ enum LivingWall {
     let delegate: NSApplicationDelegate =
       arguments.contains("--check-saver") ? SaverCheck()
       : arguments.contains("--check-settings") ? SettingsCheck()
+      : arguments.contains("--render-still") ? StillRender()
       : arguments.contains("--check") ? SceneCheck() : Controller()
     app.setActivationPolicy(.accessory)
     app.delegate = delegate

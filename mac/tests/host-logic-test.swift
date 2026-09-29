@@ -1,6 +1,7 @@
 // Checks the host's pure decisions: power state, status line, and which desktop
 // pictures to save and restore. A plain program (XCTest needs full Xcode):
 // swiftc -parse-as-library mac/HostLogic.swift mac/tests/host-logic-test.swift
+import CoreGraphics
 import Foundation
 
 @main
@@ -112,6 +113,33 @@ enum HostLogicTest {
     covered.saverRunning = true
     check(covered.still, "the wallpaper rests while the screen saver plays over it")
     check(statusLine(failed: false, power: covered, paused: false, rate: 30) == "Stopped — screen saver", "and says so")
+
+    // The still under the loading scene sits exactly where the scene draws the wall
+    // (scene/src/fit.js coverFit), so the fade between them does not shift the picture.
+    let near = { (a: CGRect, b: CGRect) in
+      abs(a.minX - b.minX) < 0.01 && abs(a.minY - b.minY) < 0.01 && abs(a.width - b.width) < 0.01 && abs(a.height - b.height) < 0.01
+    }
+    check(near(wallPhotoFrame(in: CGSize(width: 1920, height: 1080)), CGRect(x: 0, y: -180.36, width: 1920, height: 1280.4)),
+      "a wide display shows the wall's full width, cropped mostly from the bottom, like the scene")
+    check(near(wallPhotoFrame(in: CGSize(width: 1512, height: 982)), CGRect(x: 0, y: -23.6835, width: 1512, height: 1008.315)),
+      "the built-in display too")
+    check(near(wallPhotoFrame(in: CGSize(width: 1000, height: 1000)), CGRect(x: -249.7657, y: 0, width: 1499.5314, height: 1000)),
+      "a narrow view shows the wall's full height, cropped evenly left and right")
+    check([CGSize(width: 1920, height: 1080), CGSize(width: 320, height: 200), CGSize(width: 800, height: 1200)].allSatisfy {
+      wallPhotoFrame(in: $0).insetBy(dx: -0.001, dy: -0.001).contains(CGRect(origin: .zero, size: $0))
+    }, "the still always covers the whole view")
+
+    // The desktop still's name. macOS keeps showing its copy of a picture set again under the
+    // same name, so a changed still must go under a name no screen shows.
+    check(stillName(holding: nil, shown: []) == "still-a.jpg", "the first still, over the user's own picture")
+    check(stillName(holding: "still-a.jpg", shown: ["still-a.jpg"]) == "still-a.jpg",
+      "the same still again keeps its name: nothing new for macOS")
+    check(stillName(holding: nil, shown: ["still-a.jpg"]) == "still-b.jpg", "a changed still goes under the other name")
+    check(stillName(holding: nil, shown: ["still-b.jpg"]) == "still-a.jpg", "and back, the next time it changes")
+    check(stillName(holding: "still-b.jpg", shown: ["still-a.jpg"]) == "still-b.jpg",
+      "a file already holding this still is used, not written again")
+    check(stillName(holding: nil, shown: ["still-a.jpg", "still-b.jpg"]) == "still-a.jpg",
+      "both shown (an interrupted switch) and neither holds it: the first name")
     exit(failures == 0 ? 0 : 1)
   }
 }

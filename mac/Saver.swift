@@ -151,6 +151,12 @@ final class LivingWallSaverView: ScreenSaverView {
   private var lastRun: Bool?
   private var inHost: Bool { ProcessInfo.processInfo.processName == "legacyScreenSaver" }
   private var resources: URL { Bundle(for: LivingWallSaverView.self).resourceURL! }
+  /// The scene's first frame as a still (SceneStill.swift, rendered by build.sh), decoded once
+  /// for every view in the host.
+  private static let still = NSImage(
+    contentsOf: Bundle(for: LivingWallSaverView.self).resourceURL!.appendingPathComponent("still.jpg"))
+  /// How long the moving wall takes to fade in over the still photo.
+  private static let fadeIn: TimeInterval = 1.5
 
   override init?(frame: NSRect, isPreview: Bool) {
     super.init(frame: frame, isPreview: isPreview)
@@ -175,6 +181,10 @@ final class LivingWallSaverView: ScreenSaverView {
 
   private func load() {
     let view = makeWebView(frame: bounds, root: resources.appendingPathComponent("scene"), messages: messages)
+    // macOS shows a fresh copy the moment the screen saver starts, and the scene takes about
+    // 2 s to load; a web view is white until its page paints, so the still drawn underneath
+    // shows until the scene is ready and fades in.
+    view.alphaValue = 0
     messages.handler = { [weak self] message in self?.received(message) }
     addSubview(view)
     web = view
@@ -196,6 +206,7 @@ final class LivingWallSaverView: ScreenSaverView {
       let settings = SaverSettings.shared
       send("wallSetMaxFps(\(isPreview ? 15 : 30)); wallSetMotion(\(settings.motion)); wallSetRain(\(settings.rain))")
       refresh()
+      reveal()
     case "failed":
       slog("the scene failed: \(message["reason"] ?? "unknown")")
       showStill()
@@ -219,6 +230,15 @@ final class LivingWallSaverView: ScreenSaverView {
     lastRun = run
     send("wallSetPaused(\(!run))")
     slog("\(run ? "running" : "paused") preview \(isPreview) \(visibility)")
+  }
+
+  /// The moving wall takes over from the still of its own first frame: only the motion changes.
+  private func reveal() {
+    NSAnimationContext.runAnimationGroup { context in
+      context.duration = Self.fadeIn
+      context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+      web?.animator().alphaValue = 1
+    }
   }
 
   @objc private func sessionChanged() { refresh() }
@@ -267,7 +287,7 @@ final class LivingWallSaverView: ScreenSaverView {
     slog("torn down (preview \(isPreview))")
   }
 
-  // MARK: - Still photo when the scene cannot run
+  // MARK: - The still: under the scene while it loads, and instead of it when it cannot run
 
   private func showStill() {
     tearDown()
@@ -275,13 +295,11 @@ final class LivingWallSaverView: ScreenSaverView {
     needsDisplay = true
   }
 
+  /// The whole wall, framed as the scene frames it (wallPhotoFrame), so the fade does not shift it.
   override func draw(_ rect: NSRect) {
     NSColor(calibratedRed: 0.027, green: 0.043, blue: 0.024, alpha: 1).setFill()
     bounds.fill()
-    guard fallback, let still = NSImage(contentsOf: resources.appendingPathComponent("scene/assets/wall.jpg")) else { return }
-    let scale = max(bounds.width / still.size.width, bounds.height / still.size.height)
-    let size = NSSize(width: still.size.width * scale, height: still.size.height * scale)
-    still.draw(in: NSRect(x: bounds.midX - size.width / 2, y: bounds.midY - size.height / 2, width: size.width, height: size.height))
+    Self.still?.draw(in: wallPhotoFrame(in: bounds.size).offsetBy(dx: bounds.minX, dy: bounds.minY))
   }
 
   override func animateOneFrame() {}
