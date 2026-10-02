@@ -54,6 +54,8 @@ export function createSprings(leaves, options = {}) {
 
   return {
     angle,
+    /** How fast each leaf turns (degrees per substep), for the snow it shakes off; read only. */
+    vel,
     /** Cursor at wall (x, y) at time t seconds. */
     setPointer(x, y, t) {
       if (pointer.inside && pointer.t !== null && t > pointer.t) {

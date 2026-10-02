@@ -84,15 +84,38 @@ enum HostLogicTest {
     check(screenSaverSession(after: "com.apple.screensaver.didstart", running: false), "did start begins a session")
     check(!screenSaverSession(after: "com.apple.screensaver.didstop", running: true), "did stop ends it")
     check(screenSaverSession(after: "com.apple.screensaver.willstop", running: true), "will stop changes nothing (macOS 26 also sends it at start)")
-    // The Options sheet broadcasts the new level to every saver host as the notification's object.
-    check(rainNames == ["Off", "Drizzle", "Steady", "Monsoon"], "Rain: Off and three modes, lightest first")
-    check(rainMode(stored: nil) == 0 && rainMode(stored: 2) == 2, "no rain until a mode is chosen; a stored mode is used")
-    check(rainMode(stored: 7) == 3 && rainMode(stored: -1) == 0, "a stored mode out of range is clamped")
-    let read = { (object: String?) in optionsFromBroadcast(object).map { "\($0.motion) \($0.rain)" } }
-    check(read("3,1") == "3 1" && read("4,0") == "4 0" && read("5,3") == "5 3", "Options' broadcast carries the Motion level and the Rain mode")
-    check(read("9,0") == "5 0" && read("1,2") == "3 2", "a broadcast level is clamped")
-    check([nil, "", "fast", "3", "3,4", "3,-1", "3,1,1", ",1", "3,"].allSatisfy { read($0) == nil }, "a malformed broadcast is ignored")
-    check(read(optionsBroadcast(motion: 5, rain: 3)) == "5 3", "what Options sends is what every host reads")
+    // One weather at a time: Rain or Snow, each with three modes, lightest first.
+    check(weathers.map(\.name) == ["Rain", "Snow"], "two weathers, Rain then Snow")
+    check(weathers[0].modes == ["Drizzle", "Steady", "Monsoon"] && weathers[1].modes == ["Flurries", "Steady", "Blizzard"],
+      "each with three modes, lightest first")
+    let rain = { (mode: Int) in WeatherChoice(weather: 0, mode: mode) }, snow = { (mode: Int) in WeatherChoice(weather: 1, mode: mode) }
+    check(choosing(weather: 1, mode: 2, from: rain(3)) == snow(2), "choosing a snow mode while it rains stops the rain")
+    check(choosing(weather: 0, mode: 1, from: snow(3)) == rain(1), "and a rain mode stops the snow")
+    check(choosing(weather: 0, mode: 0, from: rain(2)) == .off, "a weather's Off turns it off")
+    check(choosing(weather: 0, mode: 0, from: snow(2)) == snow(2), "and changes nothing while the other weather is on")
+    check(choosing(weather: 1, mode: 9, from: .off) == snow(3), "a mode out of range is clamped")
+    check(snow(2).modes == [0, 2] && WeatherChoice.off.modes == [0, 0], "the scene gets every weather's mode, at most one on")
+    check(weatherQuery(snow(2)) == "rain=0&snow=2" && weatherScript(rain(3)) == "wallSetRain(3); wallSetSnow(0)",
+      "as the page's query and as calls to it")
+    // Stored as one value, so two weathers can never both be stored as on.
+    check(rain(3).stored == "rain:3" && snow(1).stored == "snow:1" && WeatherChoice.off.stored == "off", "stored as one value")
+    check(weatherChoice(stored: "snow:2", legacyRain: 3) == snow(2), "the stored weather is used")
+    check(weatherChoice(stored: "rain:7", legacyRain: nil) == rain(3) && weatherChoice(stored: "snow:-1", legacyRain: nil) == .off,
+      "its mode clamped")
+    check([nil, "off", "", "fog:1", "snow", "snow:two", "rain:1:1"].allSatisfy { weatherChoice(stored: $0, legacyRain: nil) == .off },
+      "anything unreadable, or nothing yet, is Off")
+    check(weatherChoice(stored: nil, legacyRain: 2) == rain(2) && weatherChoice(stored: nil, legacyRain: 0) == .off,
+      "before there was one, the Rain mode earlier versions stored carries over")
+    check(weatherChoice(stored: "off", legacyRain: 3) == .off, "but once a weather is stored, the old Rain mode is ignored")
+    // The Options sheet broadcasts Motion and the weather to every saver host as the notification's object.
+    let read = { (object: String?) in optionsFromBroadcast(object).map { "\($0.motion) \($0.weather.stored)" } }
+    check(read("3,1,0") == "3 rain:1" && read("4,0,0") == "4 off" && read("5,0,3") == "5 snow:3",
+      "Options' broadcast carries the Motion level and the weather")
+    check(read("3,2") == "3 rain:2", "an earlier version's two-part broadcast (Motion, Rain) still reads")
+    check(read("9,0,0") == "5 off" && read("1,0,2") == "3 snow:2", "a broadcast level is clamped")
+    check([nil, "", "fast", "3", "3,4", "3,-1", "3,1,1", "3,0,4", "3,0,0,1", ",1", "3,"].allSatisfy { read($0) == nil },
+      "a malformed broadcast, or one with both weathers on, is ignored")
+    check(read(optionsBroadcast(motion: 5, weather: snow(3))) == "5 snow:3", "what Options sends is what every host reads")
 
     // A host macOS starts *for* a run appears after "did start": it must still know.
     check(screenSaverSessionAtLaunch(runningApps: ["com.apple.finder", "com.apple.ScreenSaver.Engine"]),

@@ -33,7 +33,7 @@ final class Wallpaper: NSObject, WKNavigationDelegate {
   private var rate = -1
   private var paused = false
   private var motion = 4
-  private var rain = 0
+  private var weather = WeatherChoice.off
   private var inside = false
   private var crashes = 0
   private var stableSince = Date()
@@ -111,17 +111,17 @@ final class Wallpaper: NSObject, WKNavigationDelegate {
     send()
   }
 
-  /// The Rain mode (0 Off, 1 Drizzle, 2 Steady, 3 Monsoon).
-  func setRain(_ mode: Int) {
-    guard mode != rain else { return }
-    rain = mode
+  /// The one weather (Rain or Snow, and its mode), or none.
+  func setWeather(_ choice: WeatherChoice) {
+    guard choice != weather else { return }
+    weather = choice
     send()
   }
 
   private func send() {
     guard loaded else { return }
     view.evaluateJavaScript(
-      "wallSetMaxFps(\(max(rate, 0))); wallSetPaused(\(paused)); wallSetMotion(\(motion)); wallSetRain(\(rain))")
+      "wallSetMaxFps(\(max(rate, 0))); wallSetPaused(\(paused)); wallSetMotion(\(motion)); \(weatherScript(weather))")
   }
 
   /// Cursor position in this window's top-left coordinates, or nil when it is not over
@@ -291,15 +291,18 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private var status: NSStatusItem?
   private let state = NSMenuItem()
   private let pauseItem = NSMenuItem(title: "Pause", action: #selector(togglePause), keyEquivalent: "")
-  private var rainItems: [NSMenuItem] = []
+  /// Each weather's submenu items (`weathers` order), Off then its modes; each item's tag is its mode.
+  private var weatherItems: [[NSMenuItem]] = []
   private var motionItems: [NSMenuItem] = []
   private let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
   /// Menu ▸ Settings…: the settings set once (SettingsWindow.swift), made when first opened.
   private lazy var settings = SettingsWindow(openScreenSaverSettings: { [weak self] in self?.openScreenSaverSettings() })
   /// How fast and how far the leaves move; remembered across restarts.
   private var motion = motionLevel(stored: UserDefaults.standard.object(forKey: "motion") as? Int)
-  /// Rain on every screen (a rainNames index); remembered across restarts, Off until chosen.
-  private var rain = rainMode(stored: UserDefaults.standard.object(forKey: "rain") as? Int)
+  /// The one weather on every screen, or none; remembered across restarts, Off until chosen
+  /// (a Rain mode stored by an earlier version carries over).
+  private var weather = weatherChoice(
+    stored: UserDefaults.standard.string(forKey: "weather"), legacyRain: UserDefaults.standard.object(forKey: "rain") as? Int)
   /// Remembered across restarts. With no choice stored yet, Reduce Motion starts it paused.
   private var paused =
     UserDefaults.standard.object(forKey: "paused") as? Bool
@@ -393,7 +396,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     screens = NSScreen.screens.map { Wallpaper(screen: $0, root: root) }
     for screen in screens {
       screen.setMotion(motion)
-      screen.setRain(rain)
+      screen.setWeather(weather)
     }
     applyRate()
   }
@@ -493,18 +496,23 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     menu.addItem(.separator())
     pauseItem.target = self
     menu.addItem(pauseItem)
-    let modes = NSMenu(title: "Rain")
-    modes.autoenablesItems = false
-    for (index, name) in rainNames.enumerated() {
-      let item = NSMenuItem(title: name, action: #selector(chooseRain), keyEquivalent: "")
-      item.target = self
-      item.tag = index
-      modes.addItem(item)
-      rainItems.append(item)
+    for (index, weather) in weathers.enumerated() {
+      let modes = NSMenu(title: weather.name)
+      modes.autoenablesItems = false
+      var items: [NSMenuItem] = []
+      for (mode, name) in (["Off"] + weather.modes).enumerated() {
+        let item = NSMenuItem(title: name, action: #selector(chooseWeather), keyEquivalent: "")
+        item.target = self
+        item.tag = mode
+        item.representedObject = index
+        modes.addItem(item)
+        items.append(item)
+      }
+      weatherItems.append(items)
+      let submenu = NSMenuItem(title: weather.name, action: nil, keyEquivalent: "")
+      submenu.submenu = modes
+      menu.addItem(submenu)
     }
-    let rainMenu = NSMenuItem(title: "Rain", action: nil, keyEquivalent: "")
-    rainMenu.submenu = modes
-    menu.addItem(rainMenu)
     let levels = NSMenu(title: "Motion")
     levels.autoenablesItems = false
     for (level, name) in motionLevels {
@@ -533,7 +541,9 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     for item in motionItems { item.state = item.tag == motion ? .on : .off }
     pauseItem.title = paused ? "Resume" : "Pause"
     pauseItem.isEnabled = true
-    for item in rainItems { item.state = item.tag == rain ? .on : .off }
+    for (index, items) in weatherItems.enumerated() {
+      for item in items { item.state = item.tag == weather.mode(of: index) ? .on : .off }
+    }
   }
 
   @objc private func openSettings() { settings.show() }
@@ -544,10 +554,12 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     for screen in screens { screen.setMotion(motion) }
   }
 
-  @objc private func chooseRain(_ sender: NSMenuItem) {
-    rain = sender.tag
-    UserDefaults.standard.set(rain, forKey: "rain")
-    for screen in screens { screen.setRain(rain) }
+  /// One weather at a time: a mode turns every other weather off; a weather's Off turns only it off.
+  @objc private func chooseWeather(_ sender: NSMenuItem) {
+    guard let index = sender.representedObject as? Int else { return }
+    weather = choosing(weather: index, mode: sender.tag, from: weather)
+    UserDefaults.standard.set(weather.stored, forKey: "weather")
+    for screen in screens { screen.setWeather(weather) }
   }
 
   @objc private func togglePause() {
@@ -559,9 +571,9 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
   @objc private func quit() { NSApp.terminate(nil) }
 }
 
-/// `Cefalo Living Wall --check`: load the scene in a hidden web view, frozen at 10 s, and exit 0
-/// if it reports that it drew a real frame (and the app has its still for the desktop picture
-/// and its icon).
+/// `Cefalo Living Wall --check`: load the scene in a hidden web view, frozen, raining and then
+/// snowing, and exit 0 if it reports that it drew a real frame each time (and the app has its
+/// still for the desktop picture and its icon).
 /// Used by the installer and mac/tests/run.sh.
 final class SceneCheck: NSObject, NSApplicationDelegate {
   private let messages = PageMessages()
@@ -589,6 +601,9 @@ final class SceneCheck: NSObject, NSApplicationDelegate {
     window.contentView = view
     window.orderFrontRegardless()
     self.window = window
+    // Raining, then snowing, so WebKit compiles the rain's and the snow's shaders too (it compiles
+    // them only once they draw): a shader error fails the check.
+    var frames = ["t=10&smoke&rain=2", "t=30&smoke&snow=3"]
     messages.handler = { message in
       let type = message["type"] as? String, level = message["level"] as? String
       if type == "failed" { Self.finish(false, "scene failed: \(message["reason"] ?? "")") }
@@ -596,11 +611,11 @@ final class SceneCheck: NSObject, NSApplicationDelegate {
       if type == "log", level == "smoke", let text = message["message"] as? String {
         guard text.contains("\"nonBlank\":true") && text.contains("\"webgl2\":true") else { Self.finish(false, text) }
         print("Frame check passed: \(text)")
-        self.checkBridge(root: root)
+        frames.removeFirst()
+        if let next = frames.first { view.load(URLRequest(url: sceneURL(next))) } else { self.checkBridge(root: root) }
       }
     }
-    // Raining, so WebKit compiles the rain's shaders too: a shader error fails the check.
-    view.load(URLRequest(url: sceneURL("t=10&smoke&rain=2")))
+    view.load(URLRequest(url: sceneURL(frames[0])))
     DispatchQueue.main.asyncAfter(deadline: .now() + 30) { Self.finish(false, "timed out waiting for the scene") }
   }
 
@@ -611,7 +626,7 @@ final class SceneCheck: NSObject, NSApplicationDelegate {
     self.wall = wall
     wall.setPaused(false)
     wall.setMotion(3)   // Gentle: not the default, so the page must have been told
-    wall.setRain(3)   // a Monsoon, as for a display connected while it rains
+    wall.setWeather(WeatherChoice(weather: 1, mode: 3))   // a Blizzard, as for a display connected while it snows
     wall.setRate(0)
     func expect(_ what: String, after delay: Double, _ test: @escaping (String) -> Bool, then next: @escaping () -> Void) {
       DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
@@ -625,15 +640,24 @@ final class SceneCheck: NSObject, NSApplicationDelegate {
       if wall.ready { next() } else { DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { whenReady(next) } }
     }
     whenReady {
-      expect("the scene kept running after the host asked for 0 fps, or missed Motion or Rain", after: 1,
-        { $0.contains("\"running\":false") && $0.contains("\"motion\":3") && $0.contains("\"rain\":{\"mode\":3") }) {
+      expect("the scene kept running after the host asked for 0 fps, or missed Motion or Snow", after: 1,
+        { $0.contains("\"running\":false") && $0.contains("\"motion\":3") && $0.contains("\"snow\":{\"mode\":3") }) {
         wall.setRate(30)
         expect("the scene did not restart at 30 fps", after: 1, { $0.contains("\"running\":true") }) {
           wall.setPointer(NSPoint(x: 300, y: 300))
           expect("the cursor did not reach the scene", after: 0.5, { !$0.contains("\"pointerCalls\":0") }) {
-            wall.setRain(0)
-            expect("the rain did not stop", after: 0.5, { $0.contains("\"rain\":{\"mode\":0") }) {
-              Self.finish(true, "the host can stop, start and steer the scene, and switch the rain")
+            wall.setWeather(WeatherChoice(weather: 0, mode: 2))
+            expect("Steady rain did not replace the snow", after: 0.5,
+              { $0.contains("\"rain\":{\"mode\":2") && $0.contains("\"snow\":{\"mode\":0") }) {
+              wall.setWeather(WeatherChoice(weather: 1, mode: 1))
+              expect("Flurries did not replace the rain", after: 0.5,
+                { $0.contains("\"snow\":{\"mode\":1") && $0.contains("\"rain\":{\"mode\":0") }) {
+                wall.setWeather(.off)
+                expect("the weather did not stop", after: 0.5,
+                  { $0.contains("\"rain\":{\"mode\":0") && $0.contains("\"snow\":{\"mode\":0") }) {
+                  Self.finish(true, "the host can stop, start and steer the scene, and switch the weather, one at a time")
+                }
+              }
             }
           }
         }
@@ -705,22 +729,27 @@ final class SaverCheck: NSObject, NSApplicationDelegate {
         print("Saver \(name) runs: \(state.prefix(90))…")
         self.pending -= 1
         if self.pending == 0 {
-          if name.hasSuffix("(Options)") { Self.finish(true, "the screen saver runs full screen and as a preview, and Options reach it, Rain too") }
-          else { self.checkOptions() }
+          if name.hasSuffix("(Options, snow)") {
+            Self.finish(true, "the screen saver runs full screen and as a preview, and Options reach it, Rain and Snow too")
+          } else if name.hasSuffix("(Options, rain)") {
+            self.checkOptions(weather: WeatherChoice(weather: 1, mode: 2), "snow", expecting: ["\"snow\":{\"mode\":2", "\"rain\":{\"mode\":0"])
+          } else {
+            self.checkOptions(weather: WeatherChoice(weather: 0, mode: 2), "rain", expecting: ["\"rain\":{\"mode\":2"])
+          }
         }
       }
     }
   }
 
   /// Options' Done tells every view in the process the new settings; both must switch to
-  /// Gentle and Steady rain.
-  private func checkOptions() {
+  /// Gentle and the weather chosen (Steady rain, then Steady snow in its place).
+  private func checkOptions(weather: WeatherChoice, _ label: String, expecting: [String]) {
     pending = views.count
     NotificationCenter.default.post(
-      name: .init("LivingWallSaverOptionsChanged"), object: nil, userInfo: ["motion": 3, "rain": 2])
+      name: .init("LivingWallSaverOptionsChanged"), object: nil, userInfo: ["motion": 3, "weather": weather.stored])
     for (index, view) in views.enumerated() {
-      poll(view, name: index == 0 ? "full screen (Options)" : "preview (Options)", tries: 20) {
-        $0.contains("\"motion\":3") && $0.contains("\"rain\":{\"mode\":2")
+      poll(view, name: "\(index == 0 ? "full screen" : "preview") (Options, \(label))", tries: 20) { state in
+        state.contains("\"motion\":3") && expecting.allSatisfy { state.contains($0) }
       }
     }
   }

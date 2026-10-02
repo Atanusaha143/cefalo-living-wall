@@ -20,9 +20,9 @@ enum SaverSession {
   private(set) static var locked = false
   private(set) static var screensAsleep = false
   static let changed = Notification.Name("LivingWallSaverSessionChanged")
-  /// New settings from the Options sheet (in-process; userInfo["motion"] Int, ["rain"] Int mode).
+  /// New settings from the Options sheet (in-process; userInfo["motion"] Int, ["weather"] its stored String).
   static let optionsChanged = Notification.Name("LivingWallSaverOptionsChanged")
-  /// The Options sheet's broadcast to every saver host; its object is optionsBroadcast(motion:rain:).
+  /// The Options sheet's broadcast to every saver host; its object is optionsBroadcast(motion:weather:).
   static let broadcastName = "local.cefalo-living-wall.saver.options"
   private static var observing = false
 
@@ -61,8 +61,9 @@ enum SaverSession {
     }
     _ = DistributedNotificationCenter.default().addObserver(forName: .init(broadcastName), object: nil, queue: .main) { note in
       guard let options = optionsFromBroadcast(note.object as? String) else { return }
-      slog("options changed to motion \(options.motion), rain \(options.rain) by Options")
-      NotificationCenter.default.post(name: optionsChanged, object: nil, userInfo: ["motion": options.motion, "rain": options.rain])
+      slog("options changed to motion \(options.motion), weather \(options.weather.stored) by Options")
+      NotificationCenter.default.post(
+        name: optionsChanged, object: nil, userInfo: ["motion": options.motion, "weather": options.weather.stored])
     }
   }
 }
@@ -73,59 +74,82 @@ final class OptionsSheet: NSObject {
   private(set) static var current: OptionsSheet?
   let window: NSWindow
   private let popup: NSPopUpButton
-  private let rainPopup: NSPopUpButton
+  /// One per weather (`weathers`), Off then its modes: choosing a mode in one turns the others off.
+  private var weatherPopups: [NSPopUpButton] = []
 
   static func show() -> NSWindow {
     if let current { return current.window }   // the host may ask more than once
     let sheet = OptionsSheet()
     current = sheet
-    slog("options sheet shown (motion \(SaverSettings.shared.motion), rain \(SaverSettings.shared.rain))")
+    slog("options sheet shown (motion \(SaverSettings.shared.motion), weather \(SaverSettings.shared.weather.stored))")
     return sheet.window
   }
 
   private override init() {
-    window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: 196), styleMask: [.titled], backing: .buffered, defer: false)
-    popup = NSPopUpButton(frame: NSRect(x: 90, y: 143, width: 190, height: 28), pullsDown: false)
-    rainPopup = NSPopUpButton(frame: NSRect(x: 90, y: 79, width: 190, height: 28), pullsDown: false)
+    // Motion, then a pop-up for each weather, then the buttons: 64 points a row.
+    let height = CGFloat(132 + 64 * weathers.count)
+    window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: height), styleMask: [.titled], backing: .buffered, defer: false)
+    popup = NSPopUpButton(frame: NSRect(x: 90, y: height - 53, width: 190, height: 28), pullsDown: false)
     super.init()
     window.title = "Cefalo Living Wall"
-    let content = NSView(frame: NSRect(x: 0, y: 0, width: 360, height: 196))
-    let label = NSTextField(labelWithString: "Motion:")
-    label.frame = NSRect(x: 20, y: 148, width: 70, height: 20)
+    let content = NSView(frame: NSRect(x: 0, y: 0, width: 360, height: height))
+    func row(_ title: String, _ control: NSView, hint: String, top: CGFloat) {
+      let label = NSTextField(labelWithString: title)
+      label.frame = NSRect(x: 20, y: top + 5, width: 70, height: 20)
+      let note = NSTextField(labelWithString: hint)
+      note.frame = NSRect(x: 20, y: top - 25, width: 320, height: 20)
+      note.textColor = .secondaryLabelColor
+      for view in [label, control, note] { content.addSubview(view) }
+    }
     for (level, name) in motionLevels {
       popup.addItem(withTitle: name)
       popup.lastItem?.tag = level
     }
     popup.selectItem(withTag: SaverSettings.shared.motion)
-    let hint = NSTextField(labelWithString: "How fast and how far the leaves move.")
-    hint.frame = NSRect(x: 20, y: 118, width: 320, height: 20)
-    hint.textColor = .secondaryLabelColor
-    let rainLabel = NSTextField(labelWithString: "Rain:")
-    rainLabel.frame = NSRect(x: 20, y: 84, width: 70, height: 20)
-    rainPopup.addItems(withTitles: rainNames)
-    rainPopup.selectItem(at: SaverSettings.shared.rain)
-    let rainHint = NSTextField(labelWithString: "Rain falling in front of the wall.")
-    rainHint.frame = NSRect(x: 20, y: 56, width: 320, height: 20)
-    rainHint.textColor = .secondaryLabelColor
+    row("Motion:", popup, hint: "How fast and how far the leaves move.", top: height - 53)
+    let chosen = SaverSettings.shared.weather
+    for (index, weather) in weathers.enumerated() {
+      let top = height - 117 - 64 * CGFloat(index)
+      let choice = NSPopUpButton(frame: NSRect(x: 90, y: top, width: 190, height: 28), pullsDown: false)
+      choice.addItems(withTitles: ["Off"] + weather.modes)
+      choice.selectItem(at: chosen.mode(of: index))
+      choice.tag = index
+      choice.target = self
+      choice.action = #selector(chooseWeather)
+      weatherPopups.append(choice)
+      row("\(weather.name):", choice, hint: weather.hint, top: top)
+    }
     let cancel = NSButton(title: "Cancel", target: self, action: #selector(cancel))
     cancel.frame = NSRect(x: 168, y: 16, width: 84, height: 30)
     cancel.keyEquivalent = "\u{1b}"
     let done = NSButton(title: "Done", target: self, action: #selector(save))
     done.frame = NSRect(x: 256, y: 16, width: 84, height: 30)
     done.keyEquivalent = "\r"
-    for view in [label, popup, hint, rainLabel, rainPopup, rainHint, cancel, done] { content.addSubview(view) }
+    for view in [cancel, done] { content.addSubview(view) }
     window.contentView = content
   }
 
+  /// One weather at a time: a mode chosen in one pop-up turns every other to Off at once.
+  @objc private func chooseWeather(_ sender: NSPopUpButton) {
+    guard sender.indexOfSelectedItem > 0 else { return }
+    for other in weatherPopups where other !== sender { other.selectItem(at: 0) }
+  }
+
+  /// The weather the pop-ups show (at most one is not Off).
+  private var chosenWeather: WeatherChoice {
+    weatherPopups.reduce(WeatherChoice.off) { choosing(weather: $1.tag, mode: $1.indexOfSelectedItem, from: $0) }
+  }
+
   @objc private func save() {
-    let level = motionLevel(stored: popup.selectedTag()), rain = rainMode(stored: rainPopup.indexOfSelectedItem)
+    let level = motionLevel(stored: popup.selectedTag()), weather = chosenWeather
     SaverSettings.shared.motion = level
-    SaverSettings.shared.rain = rain
-    slog("options saved: motion \(level), rain \(rain)")
+    SaverSettings.shared.weather = weather
+    slog("options saved: motion \(level), weather \(weather.stored)")
     // This process's views, and every other saver host (the thumbnail may live elsewhere).
-    NotificationCenter.default.post(name: SaverSession.optionsChanged, object: nil, userInfo: ["motion": level, "rain": rain])
+    NotificationCenter.default.post(
+      name: SaverSession.optionsChanged, object: nil, userInfo: ["motion": level, "weather": weather.stored])
     DistributedNotificationCenter.default().postNotificationName(
-      .init(SaverSession.broadcastName), object: optionsBroadcast(motion: level, rain: rain), userInfo: nil,
+      .init(SaverSession.broadcastName), object: optionsBroadcast(motion: level, weather: weather), userInfo: nil,
       deliverImmediately: true)
     close()
   }
@@ -189,7 +213,7 @@ final class LivingWallSaverView: ScreenSaverView {
     addSubview(view)
     web = view
     let settings = SaverSettings.shared
-    view.load(URLRequest(url: sceneURL("motion=\(settings.motion)&rain=\(settings.rain)")))
+    view.load(URLRequest(url: sceneURL("motion=\(settings.motion)&\(weatherQuery(settings.weather))")))
     readyTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: false) { [weak self] _ in
       guard let self, !self.ready else { return }
       slog("the scene was not ready within 15 s; showing the still photo")
@@ -204,7 +228,7 @@ final class LivingWallSaverView: ScreenSaverView {
       readyTimer?.invalidate()
       slog("ready preview \(isPreview) \(visibility)")
       let settings = SaverSettings.shared
-      send("wallSetMaxFps(\(isPreview ? 15 : 30)); wallSetMotion(\(settings.motion)); wallSetRain(\(settings.rain))")
+      send("wallSetMaxFps(\(isPreview ? 15 : 30)); wallSetMotion(\(settings.motion)); \(weatherScript(settings.weather))")
       refresh()
       reveal()
     case "failed":
@@ -244,8 +268,8 @@ final class LivingWallSaverView: ScreenSaverView {
   @objc private func sessionChanged() { refresh() }
 
   @objc private func optionsChanged(_ note: Notification) {
-    guard let level = note.userInfo?["motion"] as? Int, let rain = note.userInfo?["rain"] as? Int else { return }
-    send("wallSetMotion(\(level)); wallSetRain(\(rain))")
+    guard let level = note.userInfo?["motion"] as? Int, let weather = note.userInfo?["weather"] as? String else { return }
+    send("wallSetMotion(\(level)); \(weatherScript(weatherChoice(stored: weather, legacyRain: nil)))")
   }
 
   // macOS 26 calls these for pre-warmed copies too, so they only inform the log.

@@ -1,7 +1,7 @@
 import AppKit
 
-/// Menu ▸ Settings…: the settings set once, each with a line explaining it. Rain and Motion,
-/// changed often, stay in the menu. Built in code, like the rest of the app.
+/// Menu ▸ Settings…: the settings set once, each with a line explaining it. Rain, Snow and
+/// Motion, changed often, stay in the menu. Built in code, like the rest of the app.
 final class SettingsWindow: NSWindowController, NSWindowDelegate {
   static let title = "Cefalo Living Wall Settings"
   let corner = NSPopUpButton(frame: .zero, pullsDown: false)
@@ -28,7 +28,7 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
         "Move the pointer into that corner to start the screen saver: with Cefalo Living Wall chosen below for "
           + "each display, your Mac locks behind the moving wall. The power button shows a still photo.")],
       [Self.label("Screen Saver"), screenSaverButton],
-      [NSGridCell.emptyContentView, Self.note("Choose Cefalo Living Wall for each display. Its Options… set its own Motion and Rain.")],
+      [NSGridCell.emptyContentView, Self.note("Choose Cefalo Living Wall for each display. Its Options… set its own Motion, Rain and Snow.")],
     ])
     grid.column(at: 0).xPlacement = .trailing
     grid.rowAlignment = .firstBaseline

@@ -132,23 +132,78 @@ func screenSaverSessionAtLaunch(runningApps: [String]) -> Bool {
   runningApps.contains("com.apple.ScreenSaver.Engine")
 }
 
-/// The Rain menu and the screen saver's Rain pop-up: Off, then the modes, lightest first.
-let rainNames = ["Off", "Drizzle", "Steady", "Monsoon"]
+/// The weathers, in menu order, each with its modes, lightest first (mode 0 is Off), and the hint
+/// under its pop-up in the screen saver's Options. One at a time: as in scene/src/main.js.
+let weathers: [(name: String, modes: [String], hint: String)] = [
+  ("Rain", ["Drizzle", "Steady", "Monsoon"], "Rain falling in front of the wall."),
+  ("Snow", ["Flurries", "Steady", "Blizzard"], "Snow falling in front of the wall."),
+]
 
-/// The Rain mode to use: the stored choice clamped to 0 (Off)…3 (Monsoon), or Off.
-func rainMode(stored: Int?) -> Int {
-  guard let stored else { return 0 }
-  return min(rainNames.count - 1, max(0, stored))
+/// Off, or the one weather that is on (a `weathers` index) and its mode (1…).
+struct WeatherChoice: Equatable {
+  var weather: Int?
+  var mode: Int
+  static let off = WeatherChoice(weather: nil, mode: 0)
+
+  /// That weather's mode: 0 unless it is the one on.
+  func mode(of weather: Int) -> Int { self.weather == weather ? mode : 0 }
+  /// Every weather's mode, in `weathers` order: at most one is not 0.
+  var modes: [Int] { weathers.indices.map(mode(of:)) }
+  /// As stored: "off", or the weather's name in lower case and its mode, e.g. "snow:3".
+  var stored: String { weather.map { "\(weathers[$0].name.lowercased()):\(mode)" } ?? "off" }
+}
+
+/// The weather after choosing `mode` in `weather`'s submenu or pop-up: a mode makes it the one
+/// weather (every other goes off); its Off (0) turns only it off, so nothing changes while
+/// another weather is on.
+func choosing(weather: Int, mode: Int, from current: WeatherChoice) -> WeatherChoice {
+  if mode > 0 { return WeatherChoice(weather: weather, mode: min(mode, weathers[weather].modes.count)) }
+  return current.weather == weather ? .off : current
+}
+
+/// The weather to use: the stored choice (`weather`, e.g. "snow:3") with its mode clamped;
+/// before there was one, the Rain mode earlier versions stored (`rain`, 0…3); anything
+/// unreadable is Off.
+func weatherChoice(stored: String?, legacyRain: Int?) -> WeatherChoice {
+  guard let stored else { return choosing(weather: 0, mode: max(0, legacyRain ?? 0), from: .off) }
+  let parts = stored.split(separator: ":", omittingEmptySubsequences: false)
+  guard parts.count == 2, let weather = weathers.firstIndex(where: { $0.name.lowercased() == parts[0] }),
+    let mode = Int(parts[1])
+  else { return .off }
+  return choosing(weather: weather, mode: max(0, mode), from: .off)
+}
+
+/// The scene's page asked for this weather: "rain=0&snow=2" (scene/src/main.js reads them).
+func weatherQuery(_ choice: WeatherChoice) -> String {
+  weathers.indices.map { "\(weathers[$0].name.lowercased())=\(choice.mode(of: $0))" }.joined(separator: "&")
+}
+
+/// The scene told this weather: "wallSetRain(0); wallSetSnow(2)" (Off first would do too: a
+/// weather set to 0 turns only itself off).
+func weatherScript(_ choice: WeatherChoice) -> String {
+  weathers.indices.map { "wallSet\(weathers[$0].name)(\(choice.mode(of: $0)))" }.joined(separator: "; ")
 }
 
 /// What the screen saver's Options sheet broadcasts to every saver host, as the notification's
-/// object (sandboxed senders cannot attach userInfo): "<motion>,<rain mode>".
-func optionsBroadcast(motion: Int, rain: Int) -> String { "\(motion),\(rain)" }
+/// object (sandboxed senders cannot attach userInfo): "<motion>,<each weather's mode>", in
+/// `weathers` order, e.g. "4,0,2".
+func optionsBroadcast(motion: Int, weather: WeatherChoice) -> String {
+  ([motion] + weather.modes).map(String.init).joined(separator: ",")
+}
 
-/// The Motion level (clamped) and Rain mode from that broadcast, or nil when it is malformed.
-func optionsFromBroadcast(_ object: String?) -> (motion: Int, rain: Int)? {
-  guard let parts = object?.split(separator: ",", omittingEmptySubsequences: false), parts.count == 2,
-    let level = Int(parts[0]), let rain = Int(parts[1]), rainNames.indices.contains(rain)
+/// The Motion level (clamped) and the weather from that broadcast, or nil when it is malformed,
+/// including two weathers on at once. The two-part "<motion>,<rain>" of earlier versions still reads.
+func optionsFromBroadcast(_ object: String?) -> (motion: Int, weather: WeatherChoice)? {
+  guard let parts = object?.split(separator: ",", omittingEmptySubsequences: false),
+    parts.count == 2 || parts.count == weathers.count + 1, let level = Int(parts[0])
   else { return nil }
-  return (motionLevel(stored: level), rain)
+  var choice = WeatherChoice.off
+  for (index, part) in parts.dropFirst().enumerated() {
+    guard let mode = Int(part), (0...weathers[index].modes.count).contains(mode) else { return nil }
+    if mode > 0 {
+      guard choice == .off else { return nil }
+      choice = WeatherChoice(weather: index, mode: mode)
+    }
+  }
+  return (motionLevel(stored: level), choice)
 }

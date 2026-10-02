@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LOGO_AREA, letterMask, letterDistance, swayFreedom, FREEDOM } from '../scene/src/logo-mask.js';
+import { LOGO_AREA, letterMask, letterDistance, swayFreedom, freedomOf, FREEDOM } from '../scene/src/logo-mask.js';
 import { SWAY_REACH } from '../scene/src/photo-layer.js';
 import { LOGO_BOX } from '../scene/src/wall.js';
 
@@ -53,4 +53,9 @@ test('a moved pixel never reaches a letter, however hard the wind and the cursor
     // It stays at least a unit clear of the letter, where the photo's filtering could still blend in its white.
     assert.ok(SWAY_REACH * line[x] <= Math.max(0, toStroke(x) - 1), `x=${x}: moves up to ${(SWAY_REACH * line[x]).toFixed(1)} units, ${toStroke(x)} from the letter`);
   }
+});
+
+test('the freedom from letter distances already worked out (which the frost shares) is the same', () => {
+  const image = strokeImage();
+  assert.deepEqual(freedomOf(letterDistance(letterMask(image, 200, 60), 200, 60)), swayFreedom(image, 200, 60));
 });

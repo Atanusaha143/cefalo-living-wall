@@ -1,4 +1,4 @@
-// Checks that the Motion level and Rain mode saved in the screen saver's Options sheet are really stored:
+// Checks that the Motion level and the weather saved in the screen saver's Options sheet are really stored:
 // another process must read it back, as a newly started screen-saver host does. A plain
 // program: swiftc -parse-as-library mac/HostLogic.swift mac/SaverSettings.swift
 // mac/tests/saver-settings-test.swift -framework ScreenSaver
@@ -15,7 +15,7 @@ enum SaverSettingsTest {
     if !ok { failures += 1 }
   }
 
-  /// "<motion> <rain>" as a separate process reads them (this program, run with --read).
+  /// "<motion> <weather>" as a separate process reads them (this program, run with --read).
   static func readInAnotherProcess() -> String {
     let child = Process()
     child.executableURL = Bundle.main.executableURL
@@ -46,20 +46,25 @@ enum SaverSettingsTest {
   static func main() {
     let settings = SaverSettings(module: module)
     if CommandLine.arguments.dropFirst().first == "--read" {
-      print("\(settings.motion) \(settings.rain)")
+      print("\(settings.motion) \(settings.weather.stored)")
       return
     }
     removeStored()
-    check(readInAnotherProcess() == "4 0", "Lively and dry until Options saves something")
+    check(readInAnotherProcess() == "4 off", "Lively and no weather until Options saves something")
+    // An earlier version stored Rain on its own: it carries over until a weather is saved.
+    let old = ScreenSaverDefaults(forModuleWithName: module)
+    old?.set(3, forKey: "rain")
+    old?.synchronize()
+    check(readInAnotherProcess() == "4 rain:3", "a Monsoon saved by an earlier version carries over")
     settings.motion = 3
-    check(readInAnotherProcess() == "3 0", "Gentle saved in Options is what a newly started screen-saver host reads")
-    settings.rain = 3
-    check(readInAnotherProcess() == "3 3", "so is a Monsoon, without touching Motion")
+    check(readInAnotherProcess() == "3 rain:3", "Gentle saved in Options is what a newly started screen-saver host reads")
+    settings.weather = WeatherChoice(weather: 1, mode: 2)
+    check(readInAnotherProcess() == "3 snow:2", "so is Steady snow, in place of the rain, without touching Motion")
     settings.motion = 5
-    settings.rain = 0
-    check(readInAnotherProcess() == "5 0", "and later choices replace them")
+    settings.weather = .off
+    check(readInAnotherProcess() == "5 off", "and later choices replace them, the old Rain mode no longer read")
     settings.motion = 1
-    check(readInAnotherProcess() == "3 0", "a Calm saved by a five-level version reads as Gentle")
+    check(readInAnotherProcess() == "3 off", "a Calm saved by a five-level version reads as Gentle")
     removeStored()
     exit(failures == 0 ? 0 : 1)
   }

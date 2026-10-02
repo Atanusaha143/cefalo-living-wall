@@ -22,7 +22,7 @@ test('each level moves the leaves clearly further than the one below (the user w
     const clock = createMotionClock(level), wind = createWind(createRandom(3)), frames = [];
     for (let f = 0; f < 3600; f++) {
       const t = clock.advance(1 / 30);
-      leaves.update(t, wind.current(t), 0, clock.strength);
+      leaves.update(t, wind.current(t), clock.strength);
       frames.push(sample.map((i) => leaves.midpoint(i)));
     }
     let sum = 0, n = 0;

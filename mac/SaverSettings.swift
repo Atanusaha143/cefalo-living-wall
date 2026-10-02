@@ -12,10 +12,14 @@ struct SaverSettings {
     nonmutating set { save(newValue, forKey: "motion") }
   }
 
-  /// 0 Off, 1 Drizzle, 2 Steady, 3 Monsoon.
-  var rain: Int {
-    get { rainMode(stored: stored()?.object(forKey: "rain") as? Int) }
-    nonmutating set { save(rainMode(stored: newValue), forKey: "rain") }
+  /// Off, or the one weather and its mode: stored as one value ("snow:2"); before there was one,
+  /// the Rain mode earlier versions stored carries over.
+  var weather: WeatherChoice {
+    get {
+      let defaults = stored()
+      return weatherChoice(stored: defaults?.string(forKey: "weather"), legacyRain: defaults?.object(forKey: "rain") as? Int)
+    }
+    nonmutating set { save(newValue.stored, forKey: "weather") }
   }
 
   private func stored() -> UserDefaults? { ScreenSaverDefaults(forModuleWithName: module) }

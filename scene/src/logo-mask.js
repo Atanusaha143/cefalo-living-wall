@@ -43,7 +43,12 @@ export function letterDistance(mask, width, height) {
  * within a unit, 7 units out, and the wind could carry the letters' white out past that).
  */
 export function swayFreedom(rgba, width, height) {
-  return letterDistance(letterMask(rgba, width, height), width, height).map((d) => smoothstep(FREEDOM.from, FREEDOM.to, d));
+  return freedomOf(letterDistance(letterMask(rgba, width, height), width, height));
+}
+
+/** The same from letter distances already worked out (letterDistance), which the snow's frost uses too. */
+export function freedomOf(distances) {
+  return distances.map((d) => smoothstep(FREEDOM.from, FREEDOM.to, d));
 }
 
 /** Values 0..1 over an area as a texture (red channel); `empty` everywhere without them. */

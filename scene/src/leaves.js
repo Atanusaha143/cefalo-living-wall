@@ -3,6 +3,7 @@ import { WALL_W, WALL_H, LIGHTS } from './wall.js';
 import { swayAt, gustAt, shaderTime } from './wind.js';
 import { leafColour } from './leaf-colour.js';
 import { WIND_GLSL, OVERCAST_GLSL } from './photo-layer.js';
+import { LOADS, droopOf } from './snow-loads.js';
 
 const PETIOLE = 6, BLADE = 38;   // matches LEAF_LENGTH (44) in leaf-layout.js
 const SEGMENTS = 10;
@@ -31,6 +32,7 @@ const VERTEX = /* glsl */ `
   attribute vec2 aBlade;                 // side (-1 left edge .. 1 right edge), s (0 base .. 1 tip)
   attribute vec2 iBase;                  // stem base, wall units
   attribute float iAngle, iBend, iDeep;  // degrees clockwise from up; cursor bend; deep leaf
+  attribute float iSnow;                 // how much snow it holds (0..1, snow-loads.js)
   attribute vec3 iSize;                  // scale, foreshortening, shape (0 heart, 1 lance, 2 ovate)
   attribute vec3 iColour;
   attribute vec4 iWind;                  // sway amplitude (deg), sway phase (s), gust amplitude (deg), gust delay (s)
@@ -39,7 +41,7 @@ const VERTEX = /* glsl */ `
   uniform float uPelt;                   // how hard it rains (0..1): the drops make every leaf tremble
   varying vec3 vColour, vNormal;
   varying vec2 vWall;
-  varying float vSide, vDeep;
+  varying float vSide, vDeep, vS, vSnow, vUp;
   float halfWidth(float shape, float s) {
     if (shape < 0.5) return 11.5 * pow(max(sin(3.14159 * pow(s, 0.7)), 0.0), 0.9);
     if (shape < 1.5) return 7.0 * pow(max(sin(3.14159 * s), 0.0), 0.8);
@@ -54,13 +56,16 @@ const VERTEX = /* glsl */ `
     float h = fract(sin(dot(iBase, vec2(12.9898, 78.233))) * 43758.5453);
     deg += uPelt * (3.0 * sin(6.2831853 * (6.0 + 4.0 * h) * uTime + 40.0 * h)
                   + 1.5 * sin(6.2831853 * (11.0 + 6.0 * h) * uTime + 90.0 * h));
+    // Snow weighs it down, towards the ground (snow-loads.js's droopOf).
+    deg += ${LOADS.droop.toFixed(1)} * iSnow * sign(sin(radians(iAngle)));
     float c = cos(radians(deg)), k = sin(radians(deg));
     // Clockwise on screen, world y up: local (0, 1) -> (sin, cos).
     vec2 r = vec2(local.x * c + local.y * k, -local.x * k + local.y * c);
     vNormal = normalize(vec3(n.x * c + n.y * k, -n.x * k + n.y * c, n.z));
     vec3 world = vec3(iBase.x + r.x + uOffset.x, -iBase.y + r.y + uOffset.y, 0.0);
     vWall = vec2(world.x, -world.y);
-    vColour = iColour; vSide = side; vDeep = iDeep;
+    vColour = iColour; vSide = side; vDeep = iDeep; vS = s; vSnow = iSnow;
+    vUp = -k;   // how far the right edge (side 1) faces up on screen: -1..1
     gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
   }`;
 
@@ -70,7 +75,8 @@ const FRAGMENT = /* glsl */ `
   uniform float uWet, uShadow;
   varying vec3 vColour, vNormal;
   varying vec2 vWall;
-  varying float vSide, vDeep;
+  varying float vSide, vDeep, vS, vSnow, vUp;
+  const vec3 SNOW = vec3(0.42, 0.46, 0.54);   // linear: sRGB (0.68, 0.71, 0.76), duller than the letters
   void main() {
     if (uShadow > 0.5) { gl_FragColor = vec4(0.0, 0.0, 0.0, 0.28); return; }
     vec3 n = normalize(vNormal), p = vec3(vWall.x, -vWall.y, 0.0);
@@ -86,7 +92,17 @@ const FRAGMENT = /* glsl */ `
     }
     float edge = smoothstep(0.6, 1.0, abs(vSide)), rib = 1.0 - smoothstep(0.0, 0.07, abs(vSide));
     vec3 albedo = vColour * mix(1.0, 0.85, uWet) * (1.0 - 0.22 * edge) + vec3(0.05, 0.07, 0.03) * rib;
-    gl_FragColor = vec4(overcast(albedo * light + spec * (1.0 - 0.6 * vDeep)), 1.0);
+    // Snow along the edge that faces up, its border uneven, up to 60 % of the way across a leaf
+    // lying across at full load (less the more it points up or down), and a faint frost on its face.
+    float snow = 0.0;
+    if (vSnow > 0.001) {
+      float fromTop = 1.0 - vSide * sign(vUp), width = 1.2 * vSnow * (0.3 + 0.7 * abs(vUp));
+      float uneven = 0.25 * sin(vS * 9.0 + (vWall.x + vWall.y) * 0.05) + 0.15 * sin(vS * 17.0 - vWall.x * 0.03);
+      float band = 1.0 - smoothstep(0.55 * width, width, fromTop + uneven * width);
+      snow = max(band, 0.12 * vSnow);
+    }
+    albedo = mix(albedo, SNOW, snow);
+    gl_FragColor = vec4(overcast(albedo * light + spec * (1.0 - 0.6 * vDeep) * (1.0 - snow)), 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }`;
@@ -138,12 +154,13 @@ export function createLeaves(leaves, pixels, random, springs) {
     return colour.setRGB(r / 255, gr / 255, b / 255, THREE.SRGBColorSpace).toArray();
   });
   const bend = attr('iBend', 1, () => [0], THREE.DynamicDrawUsage);
+  const snow = attr('iSnow', 1, () => [0], THREE.DynamicDrawUsage);
 
   const uniforms = {
     uTime: { value: 0 }, uGustStart: { value: -1e4 }, uGustStrength: { value: 0 },
     uLights: { value: LIGHTS.map(([x, y]) => new THREE.Vector3(x, -y, 60)) },
     uWet: { value: 0 }, uShadow: { value: 0 }, uOffset: { value: new THREE.Vector2(0, 0) },
-    uStrength: { value: 1 }, uOvercast: { value: 0 }, uPelt: { value: 0 },
+    uStrength: { value: 1 }, uOvercast: { value: 0 }, uChill: { value: 0 }, uPelt: { value: 0 },
   };
   const make = (shadow, order) => {
     const material = new THREE.ShaderMaterial({
@@ -164,13 +181,23 @@ export function createLeaves(leaves, pixels, random, springs) {
   const group = new THREE.Group();
   group.add(make(true, 1), stems, make(false, 3));
 
-  let time = 0, gust = { start: -1e4, strength: 0 }, strength = 1;
+  let time = 0, gust = { start: -1e4, strength: 0 }, strength = 1, loads = null;
+  /** Copy the changed entries of `values` into a per-leaf GPU buffer, uploading only their span. */
+  function upload(attribute, dirty, values) {
+    if (!dirty.length) return;
+    let lo = n, hi = -1;
+    for (const i of dirty) { attribute.array[i] = values[i]; lo = Math.min(lo, i); hi = Math.max(hi, i); }
+    attribute.clearUpdateRanges();
+    attribute.addUpdateRange(lo, hi - lo + 1);
+    attribute.needsUpdate = true;
+  }
   return {
     group,
-    /** Wind time and gust for this frame, how wet the leaves look (0..1), the Motion strength,
-     *  rain's overcast (0..1), and how hard it rains (0..1), which makes the leaves tremble. */
-    update(t, currentGust, wet = 0, motionStrength = 1, overcast = 0, pelt = 0) {
+    /** Wind time and gust for this frame, the Motion strength, and the sky: how wet the leaves
+     *  look, rain's overcast, how hard it rains (the leaves tremble) and snow's chill; each 0..1. */
+    update(t, currentGust, motionStrength = 1, { wet = 0, overcast = 0, pelt = 0, chill = 0 } = {}) {
       uniforms.uOvercast.value = overcast;
+      uniforms.uChill.value = chill;
       uniforms.uPelt.value = pelt;
       time = t; gust = currentGust; strength = motionStrength;
       uniforms.uStrength.value = motionStrength;
@@ -181,20 +208,18 @@ export function createLeaves(leaves, pixels, random, springs) {
       uniforms.uWet.value = wet;
     },
     /** Copy the springs' bends into the GPU buffer, uploading only the changed span. */
-    applyBends() {
-      const dirty = springs.takeDirty();
-      if (!dirty.length) return;
-      let lo = n, hi = -1;
-      for (const i of dirty) { bend.array[i] = springs.angle[i]; lo = Math.min(lo, i); hi = Math.max(hi, i); }
-      bend.clearUpdateRanges();
-      bend.addUpdateRange(lo, hi - lo + 1);
-      bend.needsUpdate = true;
+    applyBends() { upload(bend, springs.takeDirty(), springs.angle); },
+    /** Copy the snow on the leaves (snow-loads.js) into the GPU buffer, only the changed span. */
+    applySnow(snowLoads) {
+      loads = snowLoads;
+      upload(snow, snowLoads.takeDirty(), snowLoads.load);
     },
     /** Where leaf i's midpoint is right now (wall units), matching the shader. */
     midpoint(i) {
       const l = leaves[i];
       const deg = l.angle + strength * (l.swayAmp * swayAt(l.x, time, l.swayPhase)
-        + l.gustAmp * gustAt(l.x, time, gust.start, gust.strength, l.gustDelay)) + springs.angle[i];
+        + l.gustAmp * gustAt(l.x, time, gust.start, gust.strength, l.gustDelay)) + springs.angle[i]
+        + LOADS.droop * (loads?.load[i] ?? 0) * droopOf(l.angle);
       const len = (PETIOLE + 0.5 * BLADE) * l.scale, a = (deg * Math.PI) / 180;
       return { x: l.x + Math.sin(a) * len, y: l.y - Math.cos(a) * len };
     },

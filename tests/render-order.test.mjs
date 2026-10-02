@@ -55,3 +55,16 @@ test('rain is drawn over every other layer', async () => {
   const firstRain = order.findIndex((m) => rain.group.children.includes(m));
   assert.equal(firstRain, order.length - rain.group.children.length, `drawn as ${order.map((m) => m.renderOrder).join(', ')}`);
 });
+
+test('snow is drawn over every other layer, the rain too (for the moment of sleet as one gives way to the other)', async () => {
+  const THREE = await import('../scene/vendor/three.module.js');
+  const { createRain } = await import('../scene/src/rain.js');
+  const { createSnow } = await import('../scene/src/snow.js');
+  const data = generateLeaves(createRandom(7));
+  const root = new THREE.Group();
+  const snow = createSnow(createRandom(6));
+  root.add(createLeaves(data, green(), createRandom(2), createSprings(data)).group, createRain(createRandom(3)).group, snow.group);
+  const order = drawOrder(root);
+  const firstSnow = order.findIndex((m) => snow.group.children.includes(m));
+  assert.equal(firstSnow, order.length - snow.group.children.length, `drawn as ${order.map((m) => m.renderOrder).join(', ')}`);
+});

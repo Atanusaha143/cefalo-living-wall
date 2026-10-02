@@ -61,7 +61,8 @@ export function roofSpread(lean) {
 }
 
 // The downlights' cones, the shape lights.js draws: a streak inside one is brighter and warmer.
-const LIGHT_GLSL = /* glsl */ `
+// Shared with snow.js.
+export const LIGHT_GLSL = /* glsl */ `
   uniform vec2 uLights[${LIGHTS.length}];
   float lightAt(vec2 p) {
     float sum = 0.0;
@@ -267,7 +268,7 @@ const SPLASH_FRAGMENT = /* glsl */ `
     #include <colorspace_fragment>
   }`;
 
-function noiseTexture(random, size = 128) {
+export function noiseTexture(random, size = 128) {
   const data = new Uint8Array(size * size * 4);
   for (let i = 0; i < data.length; i++) data[i] = Math.floor(random.next() * 256);
   const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
@@ -278,7 +279,7 @@ function noiseTexture(random, size = 128) {
 }
 
 /** A quad as instanced geometry: aCorner x across (-0.5..0.5), y along (0..1). */
-function quads(count, attributes) {
+export function quads(count, attributes) {
   const g = new THREE.InstancedBufferGeometry();
   g.setAttribute('aCorner', new THREE.Float32BufferAttribute([-0.5, 0, 0.5, 0, 0.5, 1, -0.5, 1], 2));
   g.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(12), 3));

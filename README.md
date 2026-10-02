@@ -2,7 +2,7 @@
 
 The Cefalo green wall as a live macOS desktop wallpaper and screen saver. The leaves
 sway in the breeze, gusts roll across the wall, leaves bend away from your cursor,
-butterflies drop by now and then, a light sweeps along the logo, and it can rain.
+butterflies drop by now and then, a light sweeps along the logo, and it can rain or snow.
 
 It is the real photo with a layer of 3D leaves in front, rendered with Three.js in a
 web view that sits behind your desktop icons. Everything runs locally and offline.
@@ -40,6 +40,16 @@ app's own icon, in Finder and Login Items, is the same mark in Cefalo's colours)
   view behind a veil. The leaves turn glossy and a mist dims the scene; they dry about a minute
   after it stops. Butterflies stay away while it rains. Remembered, and Off until you choose
   a mode.
+- **Snow** makes it snow in front of the wall on every display: **Flurries**, **Steady** or
+  **Blizzard**, or **Off**. One weather at a time: choosing a snow mode stops the rain, and a
+  rain mode stops the snow. Flakes drift and tumble, glow in the downlights and swirl in the
+  gusts; flurries come and go in still air, and a blizzard drives small flakes sideways and
+  whites out the view. The light turns cold. The snow settles on the leaves and the pebbles over
+  a few minutes, always starting from a bare wall, and CEFALO keeps a dark margin round its
+  letters. A leaf shakes its snow off when your cursor brushes it, a strong gust hits it or a
+  butterfly takes off from it. It melts over about three minutes after the snow stops (sooner
+  in rain), leaving the leaves wet. Butterflies stay away while it snows. Remembered, and Off
+  until you choose a mode.
 - **Motion** sets how fast and how far the leaves move: Gentle, Lively (the default) or
   Wild. Switching eases into the new level over about a second. It applies to every display
   and is remembered.
@@ -53,7 +63,7 @@ app's own icon, in Finder and Login Items, is the same mark in Cefalo's colours)
     Dock restarts to take the change (a brief flicker). Uninstalling clears a corner set here.
   - **Screen Saver Options…** opens System Settings where the screen saver is chosen: choose
     Cefalo Living Wall there for each display, and its **Options…** set the screen saver's own
-    Motion and Rain.
+    Motion, Rain and Snow.
 - **Quit** closes it until you next log in.
 
 Move the cursor over the wall to brush the leaves. A resting butterfly takes off if the
@@ -67,7 +77,8 @@ savers; System Settings → Screen Saver, under *Other*, on macOS 13–15). With
 than one display, macOS keeps a choice per display: pick the display at the top of that
 page and choose it for each one. It plays the living wall while the screen saver runs,
 and the wallpaper underneath rests meanwhile. **Options…** next to it sets its own Motion
-level (Lively by default) and its own Rain mode (Off by default). Between runs nothing draws.
+level (Lively by default) and its own Rain or Snow (Off by default; one at a time). Between
+runs nothing draws.
 When it starts, the still of the wall shows at once and comes alive about two seconds
 later, fading into the moving wall: macOS starts a fresh copy of the screen saver for each
 display, and the scene takes that long to load. The still is the wall's own first frame,
@@ -134,10 +145,11 @@ npm run test:photo   # the maths that prepares the photo
 ```
 
 In the browser: move the pointer over the leaves, Space to pause, keys 1–3 to pick the
-Motion level, R to step through the rain modes. Add `?debug` for frame rate and frame time,
-`?t=12` to freeze at 12 s, `?seed=3` for a different wall, `?motion=3`…`5` to start at a
-Motion level (Gentle, Lively, Wild), and `?rain=1`…`3` to start it raining (Drizzle,
-Steady, Monsoon).
+Motion level, R to step through the rain modes and S through the snow modes. Add `?debug`
+for frame rate and frame time, `?t=12` to freeze at 12 s, `?seed=3` for a different wall,
+`?motion=3`…`5` to start at a Motion level (Gentle, Lively, Wild), `?rain=1`…`3` to start it
+raining (Drizzle, Steady, Monsoon) and `?snow=1`…`3` to start it snowing (Flurries, Steady,
+Blizzard); `?t=200&snow=3` shows a wall snowed in.
 
 The photo the scene uses, `scene/assets/wall.jpg`, is made from the original
 `assets-src/green-wall.jpg` by `npm run photo`: it scales it to 3840×2560, levels the

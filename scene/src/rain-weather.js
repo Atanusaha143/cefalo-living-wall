@@ -1,3 +1,5 @@
+import { createSwells } from './weather-swells.js';
+
 // How hard it rains, how wet the leaves are and how overcast the scene is, over time.
 // Pure and seeded: rain.js, leaves.js and photo-layer.js only draw what this decides.
 // Times are simulation seconds; at(t) must be called with non-decreasing t.
@@ -53,41 +55,16 @@ export function knockCount(level, dt, random) {
 }
 
 const STEP = 0.1;        // s; at(t) integrates in steps no longer than this
-const smooth = (u) => u * u * (3 - 2 * u);
 
 export function createRainWeather(random) {
   const R = RAIN;
   let now = 0, mode = 0, last = 2, ramp = 0, wet = 0, steady = 0, dim = 0, size = 0.5;
-  // Swells: control values in [-1, 1], eased between; bursts: start and length.
-  const swells = [{ t: 0, v: random.range(-1, 1) }];
-  const bursts = [];
-  let nextBurst = random.range(...R.burstEvery);
-
-  function swellAt(t) {
-    while (swells[swells.length - 1].t <= t) {
-      const tail = swells[swells.length - 1];
-      swells.push({ t: tail.t + random.range(...R.swellStep), v: random.range(-1, 1) });
-    }
-    while (swells.length > 2 && swells[1].t <= t) swells.shift();
-    const [a, b] = swells;
-    return a.v + (b.v - a.v) * smooth((t - a.t) / (b.t - a.t));
-  }
-
-  function burstAt(t) {
-    while (nextBurst <= t) {
-      bursts.push({ start: nextBurst, length: random.range(...R.burstLength) });
-      nextBurst += random.range(...R.burstEvery);
-    }
-    while (bursts.length && bursts[0].start + bursts[0].length < t) bursts.shift();
-    const b = bursts[0];
-    if (!b || t < b.start) return 0;
-    return 0.5 - 0.5 * Math.cos((2 * Math.PI * (t - b.start)) / b.length);   // 0 → 1 → 0
-  }
+  const swells = createSwells(random, R);
 
   /** How hard the current (or, while it thins out, the last) mode rains at t. */
   function target(t) {
     const m = MODES[mode || last];
-    return Math.min(1, Math.max(m.floor, m.base + m.swell * swellAt(t) + m.burst * burstAt(t)));
+    return Math.min(1, Math.max(m.floor, m.base + m.swell * swells.swellAt(t) + m.burst * swells.burstAt(t)));
   }
 
   function advance(t) {
@@ -120,6 +97,6 @@ export function createRainWeather(random) {
       return { level: ramp * Math.min(1, Math.max(0, steady)), wet, overcast: ramp * dim, size };
     },
     /** Swells and bursts held in memory (stays small over hours of rain). */
-    get scheduled() { return swells.length + bursts.length; },
+    get scheduled() { return swells.scheduled; },
   };
 }
