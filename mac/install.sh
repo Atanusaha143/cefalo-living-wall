@@ -1,36 +1,36 @@
 #!/bin/sh
-# Build Cefalo Living Wall and its screen saver, check that both run in WebKit, install the
+# Build HR Is Watching and its screen saver, check that both run in WebKit, install the
 # app in ~/Applications and the screen saver in ~/Library/Screen Savers, and start the app
 # now and at every login. Rerun to update.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
-label=local.cefalo-living-wall
-app="$HOME/Applications/Cefalo Living Wall.app"
-saver="$HOME/Library/Screen Savers/Cefalo Living Wall.saver"
+label=local.hr-is-watching
+app="$HOME/Applications/HR Is Watching.app"
+saver="$HOME/Library/Screen Savers/HR Is Watching.saver"
 agent="$HOME/Library/LaunchAgents/$label.plist"
-log="$HOME/Library/Logs/Cefalo Living Wall.log"
+log="$HOME/Library/Logs/HR Is Watching.log"
 domain="gui/$(id -u)"
 
 build=$(mktemp -d)
 trap 'rm -rf "$build"' EXIT
 sh "$here/build.sh" "$build"
 echo "Checking the scene loads..."
-"$build/Cefalo Living Wall.app/Contents/MacOS/Cefalo Living Wall" --check
+"$build/HR Is Watching.app/Contents/MacOS/HR Is Watching" --check
 echo "Checking the screen saver runs..."
-"$build/Cefalo Living Wall.app/Contents/MacOS/Cefalo Living Wall" --check-saver "$build/Cefalo Living Wall.saver"
+"$build/HR Is Watching.app/Contents/MacOS/HR Is Watching" --check-saver "$build/HR Is Watching.saver"
 echo "Checking the Settings window..."
-"$build/Cefalo Living Wall.app/Contents/MacOS/Cefalo Living Wall" --check-settings
+"$build/HR Is Watching.app/Contents/MacOS/HR Is Watching" --check-settings
 
 launchctl bootout "$domain/$label" 2>/dev/null || true
 # A copy opened by hand rather than by the login item keeps drawing the old code over the
 # new one: quit every copy (quitting never changes the desktop picture).
-pkill -x "Cefalo Living Wall" 2>/dev/null || true
+pkill -x "HR Is Watching" 2>/dev/null || true
 mkdir -p "$HOME/Applications"
 rm -rf "$app"
-mv "$build/Cefalo Living Wall.app" "$app"
+mv "$build/HR Is Watching.app" "$app"
 mkdir -p "$(dirname "$saver")"
 rm -rf "$saver"
-mv "$build/Cefalo Living Wall.saver" "$saver"
+mv "$build/HR Is Watching.saver" "$saver"
 # A running screen-saver host keeps the old code loaded; macOS starts a fresh one when needed.
 pkill -f "legacyScreenSaver.appex/Contents/MacOS/legacyScreenSaver" 2>/dev/null || true
 
@@ -44,7 +44,7 @@ cat >"$agent" <<PLIST
 	<string>$label</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>$app/Contents/MacOS/Cefalo Living Wall</string>
+		<string>$app/Contents/MacOS/HR Is Watching</string>
 	</array>
 	<key>RunAtLoad</key>
 	<true/>
@@ -65,6 +65,6 @@ PLIST
 # Loading the agent starts the app (RunAtLoad). No kickstart -k: restarting it moments
 # after launch could interrupt its first run while it saves the previous desktop picture.
 launchctl bootstrap "$domain" "$agent"
-echo "Cefalo Living Wall installed: $app"
+echo "HR Is Watching installed: $app"
 echo "Screen saver installed: $saver (choose it in System Settings > Wallpaper; on macOS 15 and earlier, Screen Saver)"
-echo "Look for the three dots and two leaves in the menu bar. Log: ~/Library/Logs/Cefalo Living Wall.log"
+echo "Look for the three dots and two leaves in the menu bar. Log: ~/Library/Logs/HR Is Watching.log"

@@ -7,7 +7,7 @@ import ScreenSaver
 
 @main
 enum SaverSettingsTest {
-  static let module = "local.cefalo-living-wall.saver-test"
+  static let module = "local.hr-is-watching.saver-test"
   static var failures = 0
 
   static func check(_ ok: Bool, _ what: String) {

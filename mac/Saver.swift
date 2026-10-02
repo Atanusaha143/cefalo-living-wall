@@ -1,4 +1,4 @@
-// Cefalo Living Wall as a screen saver: the wallpaper's scene, one view per display and
+// HR Is Watching as a screen saver: the wallpaper's scene, one view per display and
 // per System Settings thumbnail. macOS 26 hosts third-party savers in legacyScreenSaver,
 // keeps pre-warmed copies of the selected one there, and gives no reliable signal for which
 // copy is on screen; so every copy draws exactly while the system reports a screen-saver
@@ -8,7 +8,7 @@ import ScreenSaver
 import WebKit
 import os
 
-let saverLog = Logger(subsystem: "local.cefalo-living-wall.saver", category: "saver")
+let saverLog = Logger(subsystem: "local.hr-is-watching.saver", category: "saver")
 /// Public, or the unified log redacts it.
 func slog(_ message: String) { saverLog.log("\(message, privacy: .public)") }
 
@@ -23,7 +23,7 @@ enum SaverSession {
   /// New settings from the Options sheet (in-process; userInfo["motion"] Int, ["weather"] its stored String).
   static let optionsChanged = Notification.Name("LivingWallSaverOptionsChanged")
   /// The Options sheet's broadcast to every saver host; its object is optionsBroadcast(motion:weather:).
-  static let broadcastName = "local.cefalo-living-wall.saver.options"
+  static let broadcastName = "local.hr-is-watching.saver.options"
   private static var observing = false
 
   static func observe() {
@@ -91,7 +91,7 @@ final class OptionsSheet: NSObject {
     window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: height), styleMask: [.titled], backing: .buffered, defer: false)
     popup = NSPopUpButton(frame: NSRect(x: 90, y: height - 53, width: 190, height: 28), pullsDown: false)
     super.init()
-    window.title = "Cefalo Living Wall"
+    window.title = "HR Is Watching"
     let content = NSView(frame: NSRect(x: 0, y: 0, width: 360, height: height))
     func row(_ title: String, _ control: NSView, hint: String, top: CGFloat) {
       let label = NSTextField(labelWithString: title)

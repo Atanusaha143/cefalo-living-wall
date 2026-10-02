@@ -3,7 +3,7 @@ import AppKit
 /// Menu ▸ Settings…: the settings set once, each with a line explaining it. Rain, Snow and
 /// Motion, changed often, stay in the menu. Built in code, like the rest of the app.
 final class SettingsWindow: NSWindowController, NSWindowDelegate {
-  static let title = "Cefalo Living Wall Settings"
+  static let title = "HR Is Watching Settings"
   let corner = NSPopUpButton(frame: .zero, pullsDown: false)
   let screenSaverButton = NSButton(title: "Screen Saver Options…", target: nil, action: nil)
   private let openScreenSaverSettings: () -> Void
@@ -25,10 +25,10 @@ final class SettingsWindow: NSWindowController, NSWindowDelegate {
     let grid = NSGridView(views: [
       [Self.label("Live Lock Screen"), corner],
       [NSGridCell.emptyContentView, Self.note(
-        "Move the pointer into that corner to start the screen saver: with Cefalo Living Wall chosen below for "
+        "Move the pointer into that corner to start the screen saver: with HR Is Watching chosen below for "
           + "each display, your Mac locks behind the moving wall. The power button shows a still photo.")],
       [Self.label("Screen Saver"), screenSaverButton],
-      [NSGridCell.emptyContentView, Self.note("Choose Cefalo Living Wall for each display. Its Options… set its own Motion, Rain and Snow.")],
+      [NSGridCell.emptyContentView, Self.note("Choose HR Is Watching for each display. Its Options… set its own Motion, Rain and Snow.")],
     ])
     grid.column(at: 0).xPlacement = .trailing
     grid.rowAlignment = .firstBaseline
@@ -112,7 +112,7 @@ enum LiveLockScreen {
   }
 }
 
-/// `Cefalo Living Wall --check-settings`: build the Settings window without showing it and exit
+/// `HR Is Watching --check-settings`: build the Settings window without showing it and exit
 /// 0 only if it offers Off and the four corners, shows the Dock's corner and has the Screen
 /// Saver Options… button. Changes nothing. Used by the installer and mac/tests/run.sh.
 final class SettingsCheck: NSObject, NSApplicationDelegate {

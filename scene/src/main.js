@@ -20,11 +20,14 @@ import { createSnow } from './snow.js';
 import { createSnowLoads, droopOf, LOADS } from './snow-loads.js';
 import { frostMap } from './frost-map.js';
 import { createMotionClock, DEFAULT_MOTION, MOTION_LEVELS } from './motion.js';
+import { createGaze } from './gaze.js';
+import { createWatcher } from './watcher.js';
+import { noteAt, onFace, stamp } from './hud.js';
 
 const params = new URLSearchParams(location.search);
 const SEED = Number(params.get('seed') ?? 7);
 const FREEZE = params.has('t') ? Number(params.get('t')) : null;
-const DEBUG = params.has('debug'), SMOKE = params.has('smoke');
+const DEBUG = params.has('debug'), SMOKE = params.has('smoke'), HUD = params.get('hud') !== '0';
 const host = window.webkit?.messageHandlers?.wall;
 const post = (message) => host?.postMessage(message);
 const DIP = 4;          // degrees a leaf dips under a resting butterfly
@@ -108,6 +111,7 @@ async function boot() {
   const lights = createLights(random);
   const glow = createLogoGlow(photo, area(haloMask(logo, LOGO_AREA.width, LOGO_AREA.height)));
   const butterflies = createButterflies();
+  const watcher = createWatcher(photo, createGaze(createRandom(SEED + 8)));   // HR's eyes
   const weather = createRainWeather(createRandom(SEED + 2));
   const rain = createRain(createRandom(SEED + 3));
   const drops = createRandom(SEED + 4);   // which leaves the raindrops knock
@@ -119,7 +123,7 @@ async function boot() {
     perches: leafData.map((l, index) => ({ index, x: l.midX, y: l.midY })),
     perchPosition: (i) => leaves.midpoint(i),
   });
-  world.add(photoLayer.mesh, leaves.group, butterflies.group, lights.group, glow.mesh, rain.group, snow.group);
+  world.add(photoLayer.mesh, watcher.mesh, leaves.group, butterflies.group, lights.group, glow.mesh, rain.group, snow.group);
 
   let fit = coverFit(innerWidth, innerHeight), pxPerUnit = 1;
   function resize() {
@@ -135,7 +139,7 @@ async function boot() {
   let now = { level: 0, wet: 0, overcast: 0 };   // this frame's rain
   let snowNow = snowWeather.at(0);                // and snow
   let frostMs = null;                             // how long the frost map took (made when snow first settles)
-  let simTime = 0, cpuMs = 0, frameMs = 0, measure = false, drawn = 0, pointer = null, pointerCalls = 0;
+  let simTime = 0, cpuMs = 0, frameMs = 0, measure = false, drawn = 0, pointer = null, pointerCalls = 0, movedAt = 0;
   const onePixel = new Uint8Array(4);
   const held = new Map();                          // leaf index -> resting butterfly id
   function holdPerches() {
@@ -187,6 +191,7 @@ async function boot() {
     brain.tick(dt, pointer);
     holdPerches();
     photoLayer.update(windTime, gust, sway, { overcast: now.overcast, chill: snowNow.chill, cover: snowNow.cover });
+    watcher.update(dt, t, pointer, { overcast: now.overcast, chill: snowNow.chill });
     rain.update(t, windTime, gust, now, sway, pxPerUnit, dt);
     snow.update(t, windTime, gust, snowNow, strength, pxPerUnit, dt);
     lights.update(t, pxPerUnit);
@@ -215,6 +220,7 @@ async function boot() {
     pointer(px, py) {
       pointerCalls++;
       const p = toWall(fit, px, py, innerWidth, innerHeight);
+      if (!pointer || Math.hypot(p.x - pointer.x, p.y - pointer.y) > 0.5) movedAt = performance.now();
       pointer = { x: p.x, y: p.y, inside: true };
       photoLayer.poke(p.x, p.y, clock.time);
       springs.setPointer(p.x, p.y, simTime);
@@ -234,6 +240,7 @@ async function boot() {
   window.wallState = () => ({
     drawn, running: loop.running, maxFps: loop.maxFps, simTime: +simTime.toFixed(2), cpuMs: +cpuMs.toFixed(2),
     pointerCalls, pointer, bentLeaves: springs.activeCount, butterflies: brain.flyers.length,
+    gaze: watcher.gaze.eyes.map((e) => [+e.x.toFixed(2), +e.y.toFixed(2)]), lid: +watcher.gaze.lid.toFixed(2),
     motion: clock.level.level, rain: { mode: weather.mode, level: +now.level.toFixed(2) },
     snow: { mode: snowWeather.mode, level: +snowNow.level.toFixed(2), cover: +snowNow.cover.toFixed(2) },
     view: [innerWidth, innerHeight, devicePixelRatio], fit,
@@ -263,8 +270,12 @@ async function boot() {
     const median = (v) => Math.round(v.sort((a, b) => a - b)[v.length >> 1] ?? 0);
     return { letters: median(onLetters), ring: median(ring) };
   }
+  /** What the camera overlay needs to pick HR's note. */
+  const watching = () => ({
+    idle: pointer ? (performance.now() - movedAt) / 1000 : null, near: onFace(pointer), rain: weather.mode, snow: snowWeather.mode,
+  });
   return {
-    renderer, loop, fastForward, legibility,
+    renderer, loop, fastForward, legibility, watching,
     get cpuMs() { return cpuMs; }, get frameMs() { return frameMs; }, get drawn() { return drawn; },
     measureNextFrame() { measure = true; },
   };
@@ -288,7 +299,18 @@ function smokeReport(renderer, legibility) {
 
 boot().then((stats) => {
   // Keep `stats` whole: its drawn/cpuMs are live getters (spreading would copy them once).
-  const { renderer, loop, fastForward, legibility } = stats;
+  const { renderer, loop, fastForward, legibility, watching } = stats;
+  if (HUD) {
+    const hud = document.getElementById('hud'), time = hud.querySelector('.time'), note = hud.querySelector('.note');
+    const started = performance.now();
+    const tick = () => {
+      time.textContent = stamp(new Date());
+      note.textContent = noteAt((performance.now() - started) / 1000, watching());
+    };
+    tick();
+    hud.hidden = false;
+    setInterval(tick, 1000);
+  }
   if (!host) {
     addEventListener('pointermove', (e) => window.wallSetPointer(e.clientX, e.clientY));
     document.documentElement.addEventListener('pointerleave', () => window.wallPointerOut());

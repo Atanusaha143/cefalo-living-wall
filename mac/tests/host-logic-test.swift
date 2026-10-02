@@ -36,7 +36,7 @@ enum HostLogicTest {
     check(motionLevel(stored: 1) == 3 && motionLevel(stored: 2) == 3, "a Calm or Gentle saved by a five-level version reads as Gentle")
     check(motionLevel(stored: 0) == 3 && motionLevel(stored: 9) == 5, "a stored level out of range is clamped")
 
-    let still = URL(fileURLWithPath: "/Users/me/Library/Application Support/Cefalo Living Wall/still-a.jpg")
+    let still = URL(fileURLWithPath: "/Users/me/Library/Application Support/HR Is Watching/still-a.jpg")
     let mine = URL(fileURLWithPath: "/Users/me/Pictures/beach.jpg")
     let other = URL(fileURLWithPath: "/Users/me/Pictures/mountain.jpg")
     let saved = picturesToSave(
