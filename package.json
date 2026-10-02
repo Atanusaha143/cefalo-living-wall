@@ -9,6 +9,7 @@
     "smoke": "sh tests/smoke.sh",
     "test:mac": "sh mac/tests/run.sh",
     "test:photo": "sh assets-src/tests/run.sh",
-    "photo": "sh assets-src/prepare-photo.sh"
+    "photo": "sh assets-src/prepare-photo.sh",
+    "media": "node media/render.mjs"
   }
 }

@@ -1,14 +1,56 @@
+<div align="center">
+
+<img src="media/icon.png" width="128" alt="The app's icon: Cefalo's three dots in green, light blue and navy, with two green leaves opening from the bottom dot, on a white tile">
+
 # Cefalo Living Wall
 
-The Cefalo green wall as a live macOS desktop wallpaper and screen saver. The leaves
-sway in the breeze, gusts roll across the wall, leaves bend away from your cursor,
+**The Cefalo green wall, alive, as your Mac's desktop wallpaper and screen saver.**
+
+![macOS 13+](https://img.shields.io/badge/macOS-13%2B-3a6b35)
+![Three.js 0.186](https://img.shields.io/badge/Three.js-0.186-3a6b35)
+![Network: none](https://img.shields.io/badge/network-none-3a6b35)
+![Dependencies: none](https://img.shields.io/badge/dependencies-none-3a6b35)
+![Code: MIT](https://img.shields.io/badge/code-MIT-3a6b35)
+
+<img src="media/hero.gif" width="880" alt="The Cefalo green wall moving: the leaves sway, a light sweeps along the CEFALO logo and an orange butterfly rests on a leaf by the O">
+
+<sub>Five seconds of the wall at the default Motion level, rendered from the scene itself (<code>npm run media</code>).</sub>
+
+[Install](#install) · [Use](#use) · [Screen saver](#screen-saver) · [How it works](#how-it-works) · [Power and memory](#power-and-memory) · [FAQ](#faq) · [Develop](#develop)
+
+</div>
+
+The leaves sway in the breeze, gusts roll across the wall, leaves bend away from your cursor,
 butterflies drop by now and then, a light sweeps along the logo, and it can rain or snow.
 
-It is the real photo with a layer of 3D leaves in front, rendered with Three.js in a
-web view that sits behind your desktop icons. Everything runs locally and offline.
+It is the real photo with a layer of about 600 modelled leaves in front, rendered with Three.js
+in a web view that sits behind your desktop icons. Everything runs locally and offline.
 
 > The photo of the green wall, with the Cefalo logo on it, belongs to
 > [Cefalo](https://www.cefalo.com) and is used with their permission.
+
+| Steady rain | Monsoon | Blizzard, settled |
+| :---: | :---: | :---: |
+| <img src="media/rain.jpg" width="250" alt="Steady rain streaking down in front of the wall and pouring off the roof's edge"> | <img src="media/monsoon.jpg" width="250" alt="A monsoon: heavy rain and a grey veil over the wall"> | <img src="media/snow.jpg" width="250" alt="The wall after a blizzard: snow settled on the leaves, with a dark margin kept round the letters"> |
+
+## What it does
+
+- **One wind for everything.** A breeze sways the photographed leaves and the modelled ones
+  together, and every several seconds a gust rolls across the wall, overshoots and settles.
+- **Leaves you can touch.** Move the cursor over the wall and the leaves bend away from it,
+  flick as it brushes past and spring back with a little overshoot. Icons, clicks and dragging
+  on the desktop work as usual.
+- **Butterflies.** Now and then one, sometimes two, drop by, rest on a leaf and take off if the
+  cursor comes close.
+- **A light on the logo.** Every 11 seconds a light sweeps along CEFALO, and the wind eases in
+  round the letters, so they stay crisp.
+- **Rain and snow.** Three strengths of each, swelling and easing on their own. Snow settles on
+  the leaves and melts after it stops. [More below](#weather).
+- **A screen saver that keeps moving on the lock screen.** [More below](#screen-saver).
+- **Every display.** Each gets its own wall, framed so the ceiling's downlights stay clear of
+  the menu bar.
+- **Easy on the battery.** At most 30 frames a second, 15 when windows cover most of the desktop,
+  and nothing at all once it is covered, locked or asleep. [Measured](#power-and-memory).
 
 ## Install
 
@@ -19,85 +61,152 @@ From the project folder:
 sh mac/install.sh
 ```
 
-The script builds the app and the screen saver, renders a still of the wall's first
-frame (the photo with the leaves the scene adds), checks that both run, installs the app
-at `~/Applications/Cefalo Living Wall.app` and the screen saver in
-`~/Library/Screen Savers`, sets that still as your desktop picture (your current one is
-remembered), and starts the app now and at every login. macOS may show a "background
-item added" notification. Rerun the same command to update: it quits any copy that is
-still running, including one you opened by hand.
+The script:
 
-## Use
+1. builds the app and the screen saver, and renders a still of the wall's first frame (the photo
+   with the leaves the scene adds);
+2. checks that both run;
+3. installs the app at `~/Applications/Cefalo Living Wall.app` and the screen saver in
+   `~/Library/Screen Savers`;
+4. sets the still as your desktop picture (your current one is remembered);
+5. starts the app now and at every login.
 
-Click the icon in the menu bar, Cefalo's three dots with two leaves opening from them (the
-app's own icon, in Finder and Login Items, is the same mark in Cefalo's colours):
+macOS may show a "background item added" notification. Rerun the same command to update: it
+quits any copy that is still running, including one you opened by hand.
 
-- **Pause / Resume** stops or starts the animation, and is remembered.
-- **Rain** makes it rain in front of the wall on every display: **Drizzle**, **Steady** or
-  **Monsoon**, or **Off**. It builds up and swells and eases on its own. A drizzle is a fine
-  veil drifting in the air, and the roof's edge only drips; steady rain and a monsoon pour off
-  the roof, knock and shake the leaves and lean together in the gusts, and a monsoon greys the
-  view behind a veil. The leaves turn glossy and a mist dims the scene; they dry about a minute
-  after it stops. Butterflies stay away while it rains. Remembered, and Off until you choose
-  a mode.
-- **Snow** makes it snow in front of the wall on every display: **Flurries**, **Steady** or
-  **Blizzard**, or **Off**. One weather at a time: choosing a snow mode stops the rain, and a
-  rain mode stops the snow. Flakes drift and tumble, glow in the downlights and swirl in the
-  gusts; flurries come and go in still air, and a blizzard drives small flakes sideways and
-  whites out the view. The light turns cold. The snow settles on the leaves and the pebbles over
-  a few minutes, always starting from a bare wall, and CEFALO keeps a dark margin round its
-  letters. A leaf shakes its snow off when your cursor brushes it, a strong gust hits it or a
-  butterfly takes off from it. It melts over about three minutes after the snow stops (sooner
-  in rain), leaving the leaves wet. Butterflies stay away while it snows. Remembered, and Off
-  until you choose a mode.
-- **Motion** sets how fast and how far the leaves move: Gentle, Lively (the default) or
-  Wild. Switching eases into the new level over about a second. It applies to every display
-  and is remembered.
-- **Settings…** (⌘,) opens a window for the settings you set once:
-  - **Live Lock Screen** picks a hot corner, or **Off**: moving the pointer into that corner
-    starts the screen saver, and your Mac locks behind it. It is the living wall only where
-    Cefalo Living Wall is the chosen screen saver (Screen Saver Options…, for each display);
-    elsewhere the corner starts whichever screen saver is chosen. Only one corner starts the
-    screen saver: the pop-up shows it, even one set in System Settings, and **Off** clears it.
-    A corner already used for something else (Quick Note, say) asks before it is replaced. The
-    Dock restarts to take the change (a brief flicker). Uninstalling clears a corner set here.
-  - **Screen Saver Options…** opens System Settings where the screen saver is chosen: choose
-    Cefalo Living Wall there for each display, and its **Options…** set the screen saver's own
-    Motion, Rain and Snow.
-- **Quit** closes it until you next log in.
-
-Move the cursor over the wall to brush the leaves. A resting butterfly takes off if the
-cursor comes close. Icons, clicks and dragging on the desktop work as usual.
-
-## Screen saver
-
-The first time the app starts it offers to open Screen Saver settings: choose
-**Cefalo Living Wall** there (System Settings → Wallpaper on macOS 26, which holds the screen
-savers; System Settings → Screen Saver, under *Other*, on macOS 13–15). With more
-than one display, macOS keeps a choice per display: pick the display at the top of that
-page and choose it for each one. It plays the living wall while the screen saver runs,
-and the wallpaper underneath rests meanwhile. **Options…** next to it sets its own Motion
-level (Lively by default) and its own Rain or Snow (Off by default; one at a time). Between
-runs nothing draws.
-When it starts, the still of the wall shows at once and comes alive about two seconds
-later, fading into the moving wall: macOS starts a fresh copy of the screen saver for each
-display, and the scene takes that long to load. The still is the wall's own first frame,
-so only the motion changes.
-
-It keeps playing on the lock screen: when the screen saver starts (after inactivity, from a
-hot corner or with `open -a ScreenSaverEngine`), macOS 26 locks the Mac behind it and the wall
-goes on moving until you wake it; it rests as soon as the displays sleep. Locking straight
-away (the power button, ⌃⌘Q) shows the still instead: macOS starts no screen saver then.
-
-## Uninstall
+### Uninstall
 
 ```sh
 sh mac/uninstall.sh
 ```
 
 This stops the app (every running copy, including one you opened by hand), removes it, the
-screen saver and the login item, and puts back your previous desktop picture. Your settings
-are kept; `defaults delete local.cefalo-living-wall` clears them.
+screen saver and the login item, clears a hot corner set from its Settings, and puts back your
+previous desktop picture. Your settings are kept; `defaults delete local.cefalo-living-wall`
+clears them.
+
+## Use
+
+Click the icon in the menu bar: Cefalo's three dots with two leaves opening from them. (The
+app's own icon, in Finder and Login Items, is the same mark in Cefalo's colours.) The menu's
+first line says what the wall is doing, or why it is not moving.
+
+| Menu | What it does |
+| --- | --- |
+| **Pause / Resume** | Stops or starts the animation. |
+| **Rain** | **Drizzle**, **Steady** or **Monsoon**, or **Off**. |
+| **Snow** | **Flurries**, **Steady** or **Blizzard**, or **Off**. One weather at a time: choosing a snow mode stops the rain, and a rain mode stops the snow. |
+| **Motion** | How fast and how far the leaves move: **Gentle**, **Lively** (the default) or **Wild**. It eases into a new level over about a second. |
+| **Settings…** (⌘,) | The settings you set once: [Live Lock Screen](#live-lock-screen), and **Screen Saver Options…**, which opens System Settings where the [screen saver](#screen-saver) is chosen. |
+| **Quit** | Closes it until you next log in. |
+
+Every choice applies to every display and is remembered. Rain and Snow are Off until you choose
+a mode.
+
+### Weather
+
+**Rain** builds up, then swells and eases on its own. A drizzle is a fine veil drifting in the
+air, and the roof's edge only drips. Steady rain and a monsoon pour off the roof, knock and shake
+the leaves and lean together in the gusts, and a monsoon greys the view behind a veil. The leaves
+turn glossy and a mist dims the scene; they dry about a minute after it stops.
+
+**Snow** drifts and tumbles, glows in the downlights and swirls in the gusts. Flurries come and
+go in still air, and a blizzard drives small flakes sideways and whites out the view. The light
+turns cold. Over a few minutes the snow settles on the leaves and the pebbles, always starting
+from a bare wall, and CEFALO keeps a dark margin round its letters. A leaf shakes its snow off
+when your cursor brushes it, a strong gust hits it or a butterfly takes off from it. Once the
+snow stops it melts over about three minutes (sooner in rain), leaving the leaves wet.
+
+Butterflies stay away while it rains or snows.
+
+### Live Lock Screen
+
+**Settings… ▸ Live Lock Screen** picks a hot corner, or **Off**. Moving the pointer into that
+corner starts the screen saver, and your Mac locks behind it, so the lock screen shows the moving
+wall. For the lock to follow at once, set System Settings ▸ Lock Screen ▸ Require password after
+screen saver begins to Immediately.
+
+- It is the living wall only where Cefalo Living Wall is the chosen screen saver (for each
+  display); elsewhere the corner starts whichever screen saver is chosen.
+- Only one corner starts the screen saver. The pop-up shows it, even one set in System Settings,
+  and **Off** clears it. A corner already used for something else (Quick Note, say) asks before
+  it is replaced.
+- The Dock restarts to take the change, which makes the screen flicker briefly.
+
+## Screen saver
+
+The first time the app starts it offers to open Screen Saver settings. Choose **Cefalo Living
+Wall** there: in System Settings → Wallpaper on macOS 26, which holds the screen savers, or in
+System Settings → Screen Saver, under *Other*, on macOS 13–15. With more than one display, macOS
+keeps a choice per display: pick the display at the top of that page and choose it for each one.
+**Options…** next to it sets the screen saver's own Motion level (Lively by default) and its own
+Rain or Snow (Off by default; one at a time).
+
+While the screen saver runs, the wallpaper underneath rests; between runs nothing draws. When it
+starts, the still of the wall shows at once and comes alive about two seconds later, fading into
+the moving wall: macOS starts a fresh copy of the screen saver for each display, and the scene
+takes that long to load. The still is the wall's own first frame, so only the motion changes.
+
+It keeps playing on the lock screen. When the screen saver starts (after inactivity, from a hot
+corner or with `open -a ScreenSaverEngine`), macOS 26 locks the Mac behind it and the wall goes
+on moving until you wake it; it rests as soon as the displays sleep. Locking straight away (the
+power button, ⌃⌘Q) shows the still instead, because macOS starts no screen saver then.
+
+## How it works
+
+```mermaid
+flowchart LR
+  app["<b>Cefalo Living Wall.app</b><br/>menu bar, Settings,<br/>power policy, cursor"]
+  saver["<b>Cefalo Living Wall.saver</b><br/>its own Motion, Rain and Snow"]
+  web["<b>A WKWebView per display</b><br/>in a desktop-level window<br/>or the screen saver's view"]
+  subgraph scene["scene/ · Three.js on WebGL 2"]
+    direction TB
+    models["Pure, seeded models<br/>wind · springs · butterflies · rain · snow"] --> layers["Drawing layers<br/>photo · leaves · butterflies · lights · glow · rain · snow"]
+  end
+  app -- "pause · motion · weather<br/>frame cap · cursor" --> web
+  saver --> web
+  web -- "living-wall://" --> scene
+```
+
+The app puts one borderless window on each display at the desktop window level: above the
+desktop picture, below the icons, and never taking a mouse event. Each window shows the bundled
+scene in a web view. The screen saver shows the same scene, with its own settings.
+
+**The photo moves with the same wind as the leaves.** A fragment shader draws the photo, looking
+each pixel up a few units away: two drifting noise octaves, scaled by the breeze, the current
+gust and a ripple round the cursor. The shader carries a GLSL copy of
+[`wind.js`](scene/src/wind.js), so the photographed leaves and the modelled ones in front move as
+one. Those leaves are a single instanced mesh posed in the vertex shader, each coloured from the
+photo round its midpoint so it blends into the wall. Close to the letters the wind eases off,
+which keeps CEFALO crisp.
+
+**Models decide, layers draw.** Everything that changes over time is worked out by a small, pure
+module, seeded wherever chance comes in: the gusts ([`wind.js`](scene/src/wind.js)), the leaves'
+springs ([`leaf-springs.js`](scene/src/leaf-springs.js)), the butterflies' visits
+([`butterfly-brain.js`](scene/src/butterfly-brain.js)), how hard it rains or snows
+([`rain-weather.js`](scene/src/rain-weather.js), [`snow-weather.js`](scene/src/snow-weather.js))
+and the snow each leaf holds ([`snow-loads.js`](scene/src/snow-loads.js)). The Three.js modules
+only draw what those decide. So the same seed always grows the same wall, `?t=` replays any
+instant exactly (the pictures in this README are made that way), and the unit tests run in plain
+Node, with no browser.
+
+**It draws only when someone can see it.** Every 1.5 seconds the app checks a 32 × 20 grid of
+points on each display against the bounds of the windows over it, never their contents. A
+display whose desktop is at least 40 % visible draws up to 30 frames a second, one at least 5 %
+visible draws 15, and one covered beyond that draws nothing; none draws while the screen is
+locked, asleep or behind the screen saver. A stopped scene schedules nothing at all. Below the
+display's refresh rate the frame loop sleeps on a timer until just before the next frame is due,
+instead of waking on every refresh (120 times a second on a MacBook Pro's XDR display).
+
+**Offline by construction.** The scene reaches its web view over a private `living-wall://` URL
+scheme (a `file://` page could neither import ES modules nor read the photo's pixels), and its
+Content Security Policy allows no origin but its own. Three.js is bundled in `scene/vendor/`:
+nothing is downloaded, and there is nothing to install.
+
+**A still that matches.** The app renders the scene's first frame through WebKit, makes it the
+desktop picture and gives it to the screen saver, which shows it while the scene loads and then
+fades the moving wall in over it. Whether you see the still or the live wall, only the motion
+differs.
 
 ## Power and memory
 
@@ -128,40 +237,79 @@ whole Mac drew about 8.2 W:
 Rain and snow cost no more than a dry wall. Not measured: other Macs, 4K and 5K displays, the
 screen saver, and Low Power Mode.
 
+## Privacy
+
+It reads the cursor position (so the leaves can react) and the positions of windows (to know how
+much of the desktop is visible). Never window contents, never keystrokes. It needs no
+Accessibility, Input Monitoring or Screen Recording permission, and makes no network requests.
+
 ## FAQ
 
-**Will it drain my battery?** Only while you can see it move. It draws at most 30 frames a
-second, 15 when windows cover most of the desktop, and stops completely when the desktop is
-almost fully covered and while the screen is locked or asleep. On a 14-inch MacBook Pro that is
-about 5.5 W (8 % of the battery an hour) with the desktop in view, 2 W at 15 frames a second and
-nothing measurable once it stops; see [Power and memory](#power-and-memory). It keeps running
-in Low Power Mode; pause it from the menu if you want to save more.
+<details>
+<summary><b>Will it drain my battery?</b></summary>
 
-**What does it read?** The cursor position (so the leaves can react) and the positions
-of windows (to know how much of the desktop is visible). Never window contents, never
-keystrokes. It needs no Accessibility, Input Monitoring or Screen Recording permission,
-and makes no network requests.
+Only while you can see it move. It draws at most 30 frames a second, 15 when windows cover most
+of the desktop, and stops completely when the desktop is almost fully covered and while the
+screen is locked or asleep. On a 14-inch MacBook Pro that is about 5.5 W (8 % of the battery an
+hour) with the desktop in view, 2 W at 15 frames a second and nothing measurable once it stops;
+see [Power and memory](#power-and-memory). It keeps running in Low Power Mode; pause it from the
+menu if you want to save more.
 
-**Multiple displays?** Each display gets its own wall. A screen wider than the photo, such
-as a 16:9 monitor, shows its full width and crops mostly from the bottom, so the ceiling
-and its downlights stay clear of the menu bar.
+</details>
 
-**Why is it not moving?** Open the menu: the first line says why (paused, covered by
-windows, screen locked or asleep, screen saver running, scene failed to load). If Reduce
-Motion is on, it starts paused until you choose Resume.
+<details>
+<summary><b>Why is it not moving?</b></summary>
 
-**Where is the menu bar icon?** On a MacBook with a notch, macOS hides menu-bar icons that do
-not fit beside it. Quit or ⌘-drag away another icon to make room.
+Open the menu: the first line says why (paused, covered by windows, screen locked or asleep,
+screen saver running, scene failed to load). If Reduce Motion is on, it starts paused until you
+choose Resume.
 
-**Can the lock screen move?** Yes, when the screen saver starts first: macOS locks behind
-it and the wall keeps moving. Locking with the power button or ⌃⌘Q shows the still,
-because macOS starts no screen saver then. To lock with the live wall, choose a corner in
-**Settings… ▸ Live Lock Screen** and move the pointer there, and set System Settings ▸ Lock
-Screen ▸ Require password after screen saver begins to Immediately.
+</details>
 
-**Something looks wrong?** `pkill -USR1 -f "Cefalo Living Wall.app/Contents/MacOS/Cefalo Living Wall"`
-writes what the app and each display's scene are doing to `~/Library/Logs/Cefalo Living Wall.log`.
-The screen saver logs to the system log: `log show --last 10m --predicate 'subsystem == "local.cefalo-living-wall.saver"'`.
+<details>
+<summary><b>Where is the menu bar icon?</b></summary>
+
+On a MacBook with a notch, macOS hides menu-bar icons that do not fit beside it. Quit or ⌘-drag
+away another icon to make room.
+
+</details>
+
+<details>
+<summary><b>What about multiple displays?</b></summary>
+
+Each display gets its own wall. A screen wider than the photo, such as a 16:9 monitor, shows its
+full width and crops mostly from the bottom, so the ceiling and its downlights stay clear of the
+menu bar.
+
+</details>
+
+<details>
+<summary><b>Can the lock screen move?</b></summary>
+
+Yes, when the screen saver starts first: macOS locks behind it and the wall keeps moving. Locking
+with the power button or ⌃⌘Q shows the still, because macOS starts no screen saver then. To lock
+with the live wall, set up [Live Lock Screen](#live-lock-screen) and move the pointer into its
+corner.
+
+</details>
+
+<details>
+<summary><b>Something looks wrong?</b></summary>
+
+This writes what the app and each display's scene are doing to
+`~/Library/Logs/Cefalo Living Wall.log`:
+
+```sh
+pkill -USR1 -f "Cefalo Living Wall.app/Contents/MacOS/Cefalo Living Wall"
+```
+
+The screen saver logs to the system log:
+
+```sh
+log show --last 10m --predicate 'subsystem == "local.cefalo-living-wall.saver"'
+```
+
+</details>
 
 ## Develop
 
@@ -173,14 +321,38 @@ npm test             # unit tests
 npm run smoke        # headless Chrome loads the scene and checks it draws
 npm run test:mac     # host logic + the app and screen saver running in WebKit
 npm run test:photo   # the maths that prepares the photo
+npm run photo        # remake scene/assets/wall.jpg from the original photo
+npm run media        # remake this README's pictures and build/reel.mp4 (needs Chrome, ffmpeg, Xcode tools)
 ```
 
-In the browser: move the pointer over the leaves, Space to pause, keys 1–3 to pick the
-Motion level, R to step through the rain modes and S through the snow modes. Add `?debug`
-for frame rate and frame time, `?t=12` to freeze at 12 s, `?seed=3` for a different wall,
-`?motion=3`…`5` to start at a Motion level (Gentle, Lively, Wild), `?rain=1`…`3` to start it
-raining (Drizzle, Steady, Monsoon) and `?snow=1`…`3` to start it snowing (Flurries, Steady,
-Blizzard); `?t=200&snow=3` shows a wall snowed in.
+In the browser preview, move the pointer over the leaves, and:
+
+| Key | Does |
+| --- | --- |
+| Space | Pause or resume |
+| 1, 2, 3 | Motion: Gentle, Lively, Wild |
+| R | Step through the rain modes |
+| S | Step through the snow modes |
+
+| Add to the URL | To |
+| --- | --- |
+| `?debug` | Show the frame rate and frame time |
+| `?t=12` | Freeze at 12 s |
+| `?seed=3` | Grow a different wall |
+| `?motion=3`…`5` | Start at a Motion level: Gentle, Lively, Wild |
+| `?rain=1`…`3` | Start it raining: Drizzle, Steady, Monsoon |
+| `?snow=1`…`3` | Start it snowing: Flurries, Steady, Blizzard |
+
+They combine: `?t=200&snow=3` shows a wall snowed in.
+
+```
+scene/        the wall: index.html, src/ (a module per part), assets/wall.jpg, vendor/ (Three.js)
+mac/          the app and the screen saver in Swift; build, install and uninstall scripts; tests
+assets-src/   the original photo and the code that prepares it
+tests/        unit tests (node:test) and the headless Chrome smoke test
+media/        the pictures in this README, and render.mjs, which makes them
+serve.mjs     the static server behind npm start
+```
 
 The photo the scene uses, `scene/assets/wall.jpg`, is made from the original
 `assets-src/green-wall.jpg` by `npm run photo`: it scales it to 3840×2560, levels the
@@ -191,10 +363,10 @@ of the way. The command prints where the downlights ended up; copy that line int
 ## License
 
 The code is under the MIT License ([LICENSE](LICENSE)). The photo of the green wall
-(`assets-src/green-wall.jpg`, `scene/assets/wall.jpg` and the stills made from it) and
-Cefalo's name, logo and three-dot mark belong to Cefalo and are not covered by that license;
-they are used here with Cefalo's permission. Three.js 0.186.0 is bundled under its own MIT
-license (`scene/vendor/LICENSE`). The leaves in the menu bar icon and the app's icon are Apple's
-`leaf.fill` symbol, drawn from the Mac's own symbols (they are not in this repository). Apple's
-terms do not allow its symbols in app icons, so the app icon's leaves must be replaced before
-the app is shared publicly.
+(`assets-src/green-wall.jpg`, `scene/assets/wall.jpg` and the stills made from it, including the
+animation and the weather pictures in `media/`) and Cefalo's name, logo and three-dot mark belong
+to Cefalo and are not covered by that license; they are used here with Cefalo's permission.
+Three.js 0.186.0 is bundled under its own MIT license (`scene/vendor/LICENSE`). The leaves in the
+menu bar icon and the app's icon, and so in `media/icon.png`, the picture of that icon, are
+Apple's `leaf.fill` symbol, drawn from the Mac's own symbols. Apple's terms do not allow its
+symbols in app icons, so the app icon's leaves must be replaced before the app is shared publicly.
