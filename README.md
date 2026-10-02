@@ -99,12 +99,43 @@ This stops the app (every running copy, including one you opened by hand), remov
 screen saver and the login item, and puts back your previous desktop picture. Your settings
 are kept; `defaults delete local.cefalo-living-wall` clears them.
 
+## Power and memory
+
+The moving wall costs about 5.5 W while you can see it, and nothing measurable once it stops.
+Measured on 2 October 2026 on a 14-inch MacBook Pro (M2 Pro, 16 GB, macOS 26.7) on battery,
+with its built-in display and a 1080p monitor, Low Power Mode off, Motion at Lively and the
+cursor still. Each case ran for 1.5 to 3 minutes and is compared with the app quit, when the
+whole Mac drew about 8.2 W:
+
+| The wall | Frame rate | Extra power | Battery an hour | CPU | GPU busy | Memory |
+| --- | --- | --- | --- | --- | --- | --- |
+| In view: dry, Monsoon or Blizzard | 30 fps | 5–6 W | about 8 % | 0.8 of a core | 30–36 % | 690 MB |
+| Mostly covered by windows | 15 fps | 2 W | about 3 % | 0.4 of a core | 13 % | 670 MB |
+| Covered, paused, locked or asleep | none | none measurable | none | none | idle | 570 MB |
+
+- **Extra power** is for the whole Mac, read from the battery's own gauge (±0.5 W). The CPU
+  and GPU account for 1.5 W of it (`powermetrics`); the rest is spent elsewhere in the Mac
+  while it draws.
+- **Battery an hour** is that power as a share of the 70 Wh battery in a new 14-inch MacBook Pro.
+- **CPU** counts one core as 1: the app and its WebKit processes take about 0.37 of a core, and
+  WindowServer, which puts the wall on the screen, about 0.42 more. Together that is under a
+  tenth of the M2 Pro's ten cores.
+- **Memory** is Activity Monitor's figure for the app and its WebKit processes: about 390 MB for
+  the built-in display's scene, 210 MB for the 1080p one and 90 MB for the rest. It stays loaded
+  while the wall rests. A 4K display would need roughly 500 MB on its own (estimated from these
+  two).
+
+Rain and snow cost no more than a dry wall. Not measured: other Macs, 4K and 5K displays, the
+screen saver, and Low Power Mode.
+
 ## FAQ
 
-**Will it drain my battery?** It uses more power than a still picture. It draws at most
-30 frames a second, 15 when windows cover most of the desktop, and stops completely when
-the desktop is almost fully covered and while the screen is locked or asleep. It keeps
-running in Low Power Mode; pause it from the menu if you want to save more.
+**Will it drain my battery?** Only while you can see it move. It draws at most 30 frames a
+second, 15 when windows cover most of the desktop, and stops completely when the desktop is
+almost fully covered and while the screen is locked or asleep. On a 14-inch MacBook Pro that is
+about 5.5 W (8 % of the battery an hour) with the desktop in view, 2 W at 15 frames a second and
+nothing measurable once it stops; see [Power and memory](#power-and-memory). It keeps running
+in Low Power Mode; pause it from the menu if you want to save more.
 
 **What does it read?** The cursor position (so the leaves can react) and the positions
 of windows (to know how much of the desktop is visible). Never window contents, never
