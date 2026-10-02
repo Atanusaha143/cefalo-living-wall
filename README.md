@@ -12,9 +12,7 @@
 ![Dependencies: none](https://img.shields.io/badge/dependencies-none-3a6b35)
 ![Code: MIT](https://img.shields.io/badge/code-MIT-3a6b35)
 
-<img src="media/hero.gif" width="880" alt="The Cefalo green wall moving: the leaves sway, a light sweeps along the CEFALO logo and an orange butterfly rests on a leaf by the O">
-
-<sub>Five seconds of the wall at the default Motion level, rendered from the scene itself (<code>npm run media</code>).</sub>
+https://github.com/user-attachments/assets/bbf76a68-81d1-44c1-95e6-f75aa1d0c823
 
 [Install](#install) · [Use](#use) · [Screen saver](#screen-saver) · [How it works](#how-it-works) · [Power and memory](#power-and-memory) · [FAQ](#faq) · [Develop](#develop)
 
@@ -28,10 +26,6 @@ in a web view that sits behind your desktop icons. Everything runs locally and o
 
 > The photo of the green wall, with the Cefalo logo on it, belongs to
 > [Cefalo](https://www.cefalo.com) and is used with their permission.
-
-| Steady rain | Monsoon | Blizzard, settled |
-| :---: | :---: | :---: |
-| <img src="media/rain.jpg" width="250" alt="Steady rain streaking down in front of the wall and pouring off the roof's edge"> | <img src="media/monsoon.jpg" width="250" alt="A monsoon: heavy rain and a grey veil over the wall"> | <img src="media/snow.jpg" width="250" alt="The wall after a blizzard: snow settled on the leaves, with a dark margin kept round the letters"> |
 
 ## What it does
 
