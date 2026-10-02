@@ -3,7 +3,7 @@
 import ScreenSaver
 
 struct SaverSettings {
-  static let shared = SaverSettings(module: "local.cefalo-living-wall.saver")
+  static let shared = SaverSettings(module: "local.hr-is-watching.saver")
   let module: String
 
   // Read fresh each time, so a long-running host sees what Options saved elsewhere.

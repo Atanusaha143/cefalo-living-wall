@@ -6,16 +6,34 @@
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' data: blob:">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Cefalo Living Wall</title>
+  <title>HR Is Watching</title>
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; background: #070b06; }
     canvas { display: block; width: 100vw; height: 100vh; }
+    /* The security camera's overlay (hud.js): corner marks, REC, the time and HR's notes. */
+    #hud { position: fixed; inset: 0; pointer-events: none; color: #f2f4ef; opacity: 0.78;
+           font: 600 13px/1.45 ui-monospace, Menlo, monospace; letter-spacing: 0.06em; text-shadow: 0 1px 2px #000c; }
+    #hud .corner { position: absolute; width: 34px; height: 34px; border: 2px solid currentColor; opacity: 0.7; }
+    #hud .tl { left: 28px; top: 44px; border-right: 0; border-bottom: 0; }
+    #hud .tr { right: 28px; top: 44px; border-left: 0; border-bottom: 0; }
+    #hud .bl { left: 28px; bottom: 28px; border-right: 0; border-top: 0; }
+    #hud .br { right: 28px; bottom: 28px; border-left: 0; border-top: 0; }
+    #hud .panel { position: absolute; left: 48px; bottom: 44px; }
+    #hud .rec::before { content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 8px;
+                        border-radius: 50%; background: #ff3b30; box-shadow: 0 0 6px #ff3b30; animation: rec 1.6s steps(1) infinite; }
+    #hud .note { color: #ffd60a; }
+    @keyframes rec { 50% { opacity: 0.15; } }
+    @media (prefers-reduced-motion: reduce) { #hud .rec::before { animation: none; } }
     #debug { position: fixed; left: 8px; top: 8px; padding: 4px 6px; border-radius: 4px;
              font: 12px ui-monospace, monospace; color: #dfe; background: #000a; }
   </style>
 </head>
 <body>
   <canvas id="wall"></canvas>
+  <div id="hud" hidden>
+    <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+    <div class="panel"><div class="rec">REC · CAM 03 · HR</div><div class="time"></div><div class="note"></div></div>
+  </div>
   <script type="module" src="src/main.js"></script>
 </body>
 </html>

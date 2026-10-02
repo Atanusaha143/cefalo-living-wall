@@ -1,31 +1,49 @@
 <div align="center">
 
-<img src="media/icon.png" width="128" alt="The app's icon: Cefalo's three dots in green, light blue and navy, with two green leaves opening from the bottom dot, on a white tile">
+# HR Is Watching
 
-# Cefalo Living Wall
-
-**The Cefalo green wall, alive, as your Mac's desktop wallpaper and screen saver.**
+**The green wall, alive, as your Mac's desktop wallpaper and screen saver. HR has been in the hedge the whole time.**
 
 ![macOS 13+](https://img.shields.io/badge/macOS-13%2B-3a6b35)
 ![Three.js 0.186](https://img.shields.io/badge/Three.js-0.186-3a6b35)
 ![Network: none](https://img.shields.io/badge/network-none-3a6b35)
-![Dependencies: none](https://img.shields.io/badge/dependencies-none-3a6b35)
-![Code: MIT](https://img.shields.io/badge/code-MIT-3a6b35)
+![HR: watching](https://img.shields.io/badge/HR-watching-ff3b30)
 
-https://github.com/user-attachments/assets/bbf76a68-81d1-44c1-95e6-f75aa1d0c823
+<img src="media/hr.jpg" width="800" alt="The green wall with a white sign reading HR IS WATCHING beside an eye mark; above it, a man's head peeks out over the leaves, and a security-camera overlay in the corner reads REC, the time and 'Tab switch logged'.">
 
-[Install](#install) · [Use](#use) · [Screen saver](#screen-saver) · [How it works](#how-it-works) · [Power and memory](#power-and-memory) · [FAQ](#faq) · [Develop](#develop)
+[Install](#install) · [HR](#hr) · [Use](#use) · [Screen saver](#screen-saver) · [How it works](#how-it-works) · [FAQ](#faq) · [Develop](#develop)
 
 </div>
 
-The leaves sway in the breeze, gusts roll across the wall, leaves bend away from your cursor,
-butterflies drop by now and then, a light sweeps along the logo, and it can rain or snow.
+A fork of Atanu Saha's [Cefalo Living Wall](https://github.com/Atanusaha143/cefalo-living-wall),
+with the sign changed and someone from HR added. Everything else is the original: the leaves sway
+in the breeze, gusts roll across the wall, leaves bend away from your cursor, butterflies drop by,
+a light sweeps along the sign, and it can rain or snow.
 
-It is the real photo with a layer of about 600 modelled leaves in front, rendered with Three.js
-in a web view that sits behind your desktop icons. Everything runs locally and offline.
+```sh
+git clone https://github.com/shihabcsedu09/cefalo-living-wall hr-is-watching
+cd hr-is-watching
+sh mac/install.sh
+```
 
-> The photo of the green wall, with the Cefalo logo on it, belongs to
-> [Cefalo](https://www.cefalo.com) and is used with their permission.
+## HR
+
+- **His eyes follow your cursor.** Anywhere on the desktop. Each eye looks at it on its own, so
+  they converge when you hover between them.
+- **He blinks,** every few seconds, and glances about when the cursor is off the wall, now and
+  then straight at you.
+- **He gets suspicious.** Leave the cursor still for 8 seconds and he narrows his eyes.
+- **The wall is under surveillance.** A security-camera overlay in the corner shows REC, the time
+  and HR's notes: "Lunch break: 47 min (noted)", "Reply-all detected", "Slack status 'Focusing':
+  unverified". It notices when you idle for a minute, when it rains or snows, and when you put
+  the cursor on his face. Add `?hud=0` to the scene's address to take it off.
+- **The wind leaves him alone** (he is very still), no leaves grow over his face and no snow
+  settles on it.
+
+How: the sign and his head are part of the photo (`assets-src/hr/compose.py`, run by
+`npm run photo`). His eyes are drawn again on top (`scene/src/watcher.js`): the whites, then each
+iris, copied from where the photo has it and moved to where `scene/src/gaze.js` says he is looking,
+then the lids.
 
 ## What it does
 
@@ -60,7 +78,7 @@ The script:
 1. builds the app and the screen saver, and renders a still of the wall's first frame (the photo
    with the leaves the scene adds);
 2. checks that both run;
-3. installs the app at `~/Applications/Cefalo Living Wall.app` and the screen saver in
+3. installs the app at `~/Applications/HR Is Watching.app` and the screen saver in
    `~/Library/Screen Savers`;
 4. sets the still as your desktop picture (your current one is remembered);
 5. starts the app now and at every login.
@@ -76,7 +94,7 @@ sh mac/uninstall.sh
 
 This stops the app (every running copy, including one you opened by hand), removes it, the
 screen saver and the login item, clears a hot corner set from its Settings, and puts back your
-previous desktop picture. Your settings are kept; `defaults delete local.cefalo-living-wall`
+previous desktop picture. Your settings are kept; `defaults delete local.hr-is-watching`
 clears them.
 
 ## Use
@@ -120,7 +138,7 @@ corner starts the screen saver, and your Mac locks behind it, so the lock screen
 wall. For the lock to follow at once, set System Settings ▸ Lock Screen ▸ Require password after
 screen saver begins to Immediately.
 
-- It is the living wall only where Cefalo Living Wall is the chosen screen saver (for each
+- It is the living wall only where HR Is Watching is the chosen screen saver (for each
   display); elsewhere the corner starts whichever screen saver is chosen.
 - Only one corner starts the screen saver. The pop-up shows it, even one set in System Settings,
   and **Off** clears it. A corner already used for something else (Quick Note, say) asks before
@@ -129,8 +147,8 @@ screen saver begins to Immediately.
 
 ## Screen saver
 
-The first time the app starts it offers to open Screen Saver settings. Choose **Cefalo Living
-Wall** there: in System Settings → Wallpaper on macOS 26, which holds the screen savers, or in
+The first time the app starts it offers to open Screen Saver settings. Choose **HR Is
+Watching** there: in System Settings → Wallpaper on macOS 26, which holds the screen savers, or in
 System Settings → Screen Saver, under *Other*, on macOS 13–15. With more than one display, macOS
 keeps a choice per display: pick the display at the top of that page and choose it for each one.
 **Options…** next to it sets the screen saver's own Motion level (Lively by default) and its own
@@ -150,8 +168,8 @@ power button, ⌃⌘Q) shows the still instead, because macOS starts no screen s
 
 ```mermaid
 flowchart LR
-  app["<b>Cefalo Living Wall.app</b><br/>menu bar, Settings,<br/>power policy, cursor"]
-  saver["<b>Cefalo Living Wall.saver</b><br/>its own Motion, Rain and Snow"]
+  app["<b>HR Is Watching.app</b><br/>menu bar, Settings,<br/>power policy, cursor"]
+  saver["<b>HR Is Watching.saver</b><br/>its own Motion, Rain and Snow"]
   web["<b>A WKWebView per display</b><br/>in a desktop-level window<br/>or the screen saver's view"]
   subgraph scene["scene/ · Three.js on WebGL 2"]
     direction TB
@@ -291,16 +309,16 @@ corner.
 <summary><b>Something looks wrong?</b></summary>
 
 This writes what the app and each display's scene are doing to
-`~/Library/Logs/Cefalo Living Wall.log`:
+`~/Library/Logs/HR Is Watching.log`:
 
 ```sh
-pkill -USR1 -f "Cefalo Living Wall.app/Contents/MacOS/Cefalo Living Wall"
+pkill -USR1 -f "HR Is Watching.app/Contents/MacOS/HR Is Watching"
 ```
 
 The screen saver logs to the system log:
 
 ```sh
-log show --last 10m --predicate 'subsystem == "local.cefalo-living-wall.saver"'
+log show --last 10m --predicate 'subsystem == "local.hr-is-watching.saver"'
 ```
 
 </details>
@@ -360,6 +378,8 @@ The code is under the MIT License ([LICENSE](LICENSE)). The photo of the green w
 (`assets-src/green-wall.jpg`, `scene/assets/wall.jpg` and the stills made from it, including the
 animation and the weather pictures in `media/`) and Cefalo's name, logo and three-dot mark belong
 to Cefalo and are not covered by that license; they are used here with Cefalo's permission.
+The headshot of HR (`assets-src/hr/person.png` and HR's face in `scene/assets/wall.jpg`) is not
+covered by the MIT License either; it is used with his permission.
 Three.js 0.186.0 is bundled under its own MIT license (`scene/vendor/LICENSE`). The leaves in the
 menu bar icon and the app's icon, and so in `media/icon.png`, the picture of that icon, are
 Apple's `leaf.fill` symbol, drawn from the Mac's own symbols. Apple's terms do not allow its

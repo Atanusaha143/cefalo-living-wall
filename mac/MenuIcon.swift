@@ -33,7 +33,7 @@ enum MenuIcon {
       return true
     }
     image.isTemplate = true
-    image.accessibilityDescription = "Cefalo Living Wall"
+    image.accessibilityDescription = "HR Is Watching"
     return image
   }
 

@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three.module.js';
-import { WALL_W, WALL_H, WALL_TOP, WALL_BOTTOM, LOGO_BOX } from './wall.js';
+import { WALL_W, WALL_H, WALL_TOP, WALL_BOTTOM, LOGO_BOX, FACE } from './wall.js';
 import { shaderTime, GUST_STRENGTH } from './wind.js';
 import { LOGO_AREA, areaTexture } from './logo-mask.js';
 
@@ -67,6 +67,11 @@ export const LOGO_GLSL = /* glsl */ `
   uniform sampler2D uPhoto;
   vec2 uvOf(vec2 wall) { return vec2(wall.x / ${WALL_W.toFixed(1)}, 1.0 - wall.y / ${WALL_H.toFixed(1)}); }
   float letterAt(vec2 p) { return smoothstep(0.70, 0.80, texture2D(uPhoto, uvOf(p)).b); }
+  // HR's head: 1 on it, easing to 0 just outside. The wind leaves it still and no frost settles on it.
+  float faceAt(vec2 p) {
+    float r = length((p - vec2(${FACE.cx.toFixed(1)}, ${FACE.cy.toFixed(1)})) / vec2(${FACE.rx.toFixed(1)}, ${FACE.ry.toFixed(1)}));
+    return 1.0 - smoothstep(0.9, 1.15, r);
+  }
   bool nearLogo(vec2 p, float pad) {
     return p.x > ${LOGO_BOX.x0.toFixed(1)} - pad && p.x < ${LOGO_BOX.x1.toFixed(1)} + pad && p.y > ${LOGO_BOX.y0.toFixed(1)} - pad && p.y < ${LOGO_BOX.y1.toFixed(1)} + pad;
   }
@@ -123,7 +128,7 @@ export function createPhotoLayer(photo, random, freedom = null) {
       void main() {
         vec2 p = vWall;
         float wall = smoothstep(${WALL_TOP.toFixed(1)}, ${(WALL_TOP + 10).toFixed(1)}, p.y) * (1.0 - smoothstep(${(WALL_BOTTOM - 10).toFixed(1)}, ${WALL_BOTTOM.toFixed(1)}, p.y));
-        float free = wall * freedomAt(p);
+        float free = wall * freedomAt(p) * (1.0 - faceAt(p));
         vec2 offset = vec2(0.0);
         if (free > 0.001) {
           float gust = gustAt(p.x, 0.0);
@@ -138,7 +143,7 @@ export function createPhotoLayer(photo, random, freedom = null) {
           offset *= free;
         }
         gl_FragColor = texture2D(uPhoto, uvOf(p + offset));
-        if (uCover > 0.0) gl_FragColor.rgb = settled(gl_FragColor.rgb, p, p + offset);
+        if (uCover > 0.0) gl_FragColor.rgb = mix(settled(gl_FragColor.rgb, p, p + offset), gl_FragColor.rgb, faceAt(p));
         gl_FragColor.rgb = overcast(gl_FragColor.rgb);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>

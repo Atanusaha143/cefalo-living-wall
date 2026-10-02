@@ -1,4 +1,4 @@
-// Cefalo Living Wall: the Cefalo green wall, alive, as the desktop wallpaper.
+// HR Is Watching: the green wall, alive, as the desktop wallpaper, with HR peeking over the hedge.
 //
 // One borderless window per screen sits at the desktop window level: above the still
 // desktop picture, below the icons, and it never takes a mouse event, so the desktop
@@ -211,7 +211,7 @@ enum DockCorners {
 /// own picture to restore later.
 enum DesktopPicture {
   static let savedKey = "previousDesktopPictures"
-  static var folder: URL { supportFolder("Cefalo Living Wall") }
+  static var folder: URL { supportFolder("HR Is Watching") }
   /// The still under each of its names (stillNames, used in turn): never the user's own picture.
   static var stills: [URL] { stillNames.map { folder.appendingPathComponent($0) } }
 
@@ -358,14 +358,14 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private func offerScreenSaver() {
     let key = "screenSaverPromptShown"
     let saver = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0]
-      .appendingPathComponent("Screen Savers/Cefalo Living Wall.saver")
+      .appendingPathComponent("Screen Savers/HR Is Watching.saver")
     guard shouldOfferScreenSaver(
       alreadyShown: UserDefaults.standard.bool(forKey: key), saverInstalled: FileManager.default.fileExists(atPath: saver.path))
     else { return }
     UserDefaults.standard.set(true, forKey: key)
     let alert = NSAlert()
-    alert.messageText = "Use Cefalo Living Wall as your screen saver?"
-    alert.informativeText = "It can play the living wall while your Mac is idle. Choose Cefalo Living Wall in Screen Saver settings."
+    alert.messageText = "Use HR Is Watching as your screen saver?"
+    alert.informativeText = "It can play the living wall while your Mac is idle. Choose HR Is Watching in Screen Saver settings."
     alert.addButton(withTitle: "Open Screen Saver Settings")
     alert.addButton(withTitle: "Not Now")
     NSApp.activate(ignoringOtherApps: true)
@@ -486,8 +486,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     let icon = MenuIcon.image()
     item.button?.image = icon
-    if icon == nil { item.button?.title = "Cefalo Living Wall" }
-    item.button?.toolTip = "Cefalo Living Wall"
+    if icon == nil { item.button?.title = "HR Is Watching" }
+    item.button?.toolTip = "HR Is Watching"
     let menu = NSMenu()
     menu.delegate = self
     menu.autoenablesItems = false
@@ -571,7 +571,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
   @objc private func quit() { NSApp.terminate(nil) }
 }
 
-/// `Cefalo Living Wall --check`: load the scene in a hidden web view, frozen, raining and then
+/// `HR Is Watching --check`: load the scene in a hidden web view, frozen, raining and then
 /// snowing, and exit 0 if it reports that it drew a real frame each time (and the app has its
 /// still for the desktop picture and its icon).
 /// Used by the installer and mac/tests/run.sh.
@@ -671,7 +671,7 @@ final class SceneCheck: NSObject, NSApplicationDelegate {
   }
 }
 
-/// `Cefalo Living Wall --check-saver <path>`: load the built screen saver into this process,
+/// `HR Is Watching --check-saver <path>`: load the built screen saver into this process,
 /// show a full-screen view and a thumbnail preview in hidden windows, and exit 0 only if both
 /// show the scene's first frame as a still while the scene loads, then reach `ready`, fade the
 /// scene in and run at 30 and 15 fps with the saver's Motion option. Used by the installer and
@@ -688,7 +688,7 @@ final class SaverCheck: NSObject, NSApplicationDelegate {
       let saverClass = bundle.principalClass as? ScreenSaverView.Type
     else { Self.finish(false, "could not load the screen saver bundle") }
     let motion = motionLevel(
-      stored: ScreenSaverDefaults(forModuleWithName: "local.cefalo-living-wall.saver")?.object(forKey: "motion") as? Int)
+      stored: ScreenSaverDefaults(forModuleWithName: "local.hr-is-watching.saver")?.object(forKey: "motion") as? Int)
     var polls: [() -> Void] = []
     for isPreview in [false, true] {
       let frame = NSRect(x: 0, y: 0, width: isPreview ? 320 : 1200, height: isPreview ? 200 : 750)

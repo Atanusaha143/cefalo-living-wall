@@ -73,7 +73,7 @@ final class SceneStill: NSObject {
   }
 }
 
-/// `Cefalo Living Wall --render-still <file.jpg>`: render the whole wall's first frame at the
+/// `HR Is Watching --render-still <file.jpg>`: render the whole wall's first frame at the
 /// photo's size and save it as a JPEG; exit 0 only if that worked. build.sh puts it in the app
 /// (the desktop picture) and in the screen saver (under the loading scene).
 final class StillRender: NSObject, NSApplicationDelegate {

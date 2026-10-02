@@ -41,7 +41,7 @@ enum MenuIconTest {
     }
     check(image.size == NSSize(width: 29, height: 18), "the icon is 29 x 18 pt: wide enough for a leaf each side")
     check(image.isTemplate, "it is a template, so macOS tints it for light and dark menu bars and the highlight")
-    check(image.accessibilityDescription == "Cefalo Living Wall", "VoiceOver calls it Cefalo Living Wall")
+    check(image.accessibilityDescription == "HR Is Watching", "VoiceOver calls it HR Is Watching")
 
     let rep = render(image)
     let (dots, r) = (MenuIcon.dots, MenuIcon.dotRadius)

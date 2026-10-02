@@ -5,13 +5,13 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleExecutable</key>
-	<string>Cefalo Living Wall</string>
+	<string>HR Is Watching</string>
 	<key>CFBundleIdentifier</key>
-	<string>local.cefalo-living-wall.saver</string>
+	<string>local.hr-is-watching.saver</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Cefalo Living Wall</string>
+	<string>HR Is Watching</string>
 	<key>CFBundlePackageType</key>
 	<string>BNDL</string>
 	<key>CFBundleShortVersionString</key>
