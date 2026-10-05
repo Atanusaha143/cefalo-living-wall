@@ -1,0 +1,2 @@
+# Windows runs .cmd files line by line; they keep its line endings wherever the repo is checked out.
+*.cmd text eol=crlf

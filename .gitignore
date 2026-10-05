@@ -3,3 +3,7 @@ tests/out/
 build/
 .superpowers/
 docs/
+windows/bin/
+windows/obj/
+windows/tests/bin/
+windows/tests/obj/

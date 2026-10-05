@@ -25,7 +25,8 @@ const params = new URLSearchParams(location.search);
 const SEED = Number(params.get('seed') ?? 7);
 const FREEZE = params.has('t') ? Number(params.get('t')) : null;
 const DEBUG = params.has('debug'), SMOKE = params.has('smoke');
-const host = window.webkit?.messageHandlers?.wall;
+// The host app's ear: WebKit's message handler on the Mac, WebView2's on Windows; none in a browser.
+const host = window.webkit?.messageHandlers?.wall ?? window.chrome?.webview;
 const post = (message) => host?.postMessage(message);
 const DIP = 4;          // degrees a leaf dips under a resting butterfly
 

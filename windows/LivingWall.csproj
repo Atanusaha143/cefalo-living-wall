@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Cefalo Living Wall for Windows: the wallpaper app and, copied as a .scr, the screen saver.
+       Built by windows/build.ps1, which also renders the icon and the still. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Cefalo Living Wall</AssemblyName>
+    <RootNamespace>LivingWall</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- The app draws its own icon: build.ps1 builds it once without one, renders the icon with that build, then builds again with it. -->
+    <ApplicationIcon Condition="'$(AppIcon)' != ''">$(AppIcon)</ApplicationIcon>
+    <Product>Cefalo Living Wall</Product>
+    <Description>The Cefalo green wall, alive, as your desktop wallpaper and screen saver.</Description>
+    <Version>1.0.0</Version>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- Line numbers in logged errors, without a .pdb beside the program; no SDK docs either. -->
+    <DebugType>embedded</DebugType>
+    <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The one build-time download: the WebView2 SDK. The runtime it talks to ships with Windows 11. -->
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
+    <!-- The scene, as the browser preview serves it: the app maps this folder to its private host name. -->
+    <Content Include="..\scene\**\*" Exclude="..\scene\**\.DS_Store" LinkBase="scene" CopyToOutputDirectory="PreserveNewest" />
+    <Compile Remove="tests\**" />
+  </ItemGroup>
+
+  <!-- The SDK always references its WPF and WinForms controls; the app hosts CoreWebView2 itself. -->
+  <Target Name="DropWebView2Controls" AfterTargets="ResolvePackageAssets" BeforeTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <Reference Remove="@(Reference)" Condition="'%(Filename)' == 'Microsoft.Web.WebView2.Wpf' Or '%(Filename)' == 'Microsoft.Web.WebView2.WinForms'" />
+    </ItemGroup>
+  </Target>
+</Project>

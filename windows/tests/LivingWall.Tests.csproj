@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The host's pure decisions, checked by a plain program like mac/tests (no test framework to
+       download). Run by windows/tests/run.ps1. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>LivingWall.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\HostLogic.cs" Link="HostLogic.cs" />
+    <Compile Include="..\Coverage.cs" Link="Coverage.cs" />
+  </ItemGroup>
+</Project>

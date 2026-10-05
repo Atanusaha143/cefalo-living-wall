@@ -1,9 +1,17 @@
 #!/bin/sh
 # Loads the scene in headless Chrome at a frozen time and checks that it draws.
-# Needs Google Chrome. Writes tests/out/smoke-<size>.png, smoke-rain-<size>.png and
-# smoke-snow-<size>.png for a look.
+# Needs Google Chrome (or, on Windows, Chrome or Edge, which has the same engine; CHROME picks
+# another). Writes tests/out/smoke-<size>.png, smoke-rain-<size>.png and smoke-snow-<size>.png
+# for a look.
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
+if [ -z "${CHROME:-}" ]; then
+	for candidate in "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+		"/c/Program Files/Google/Chrome/Application/chrome.exe" \
+		"/c/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"; do
+		if [ -x "$candidate" ]; then CHROME=$candidate; break; fi
+	done
+fi
 chrome=${CHROME:-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
 port=${SMOKE_PORT:-8765}
 out="$root/tests/out"
